@@ -1,0 +1,1 @@
+print("Hello, Office Management System!")
