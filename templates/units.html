@@ -239,6 +239,15 @@
     background-color: #0e7490;
 }
 
+.head-btn {
+    background-color: #d97706;
+    color: white;
+}
+
+.head-btn:hover {
+    background-color: #b45309;
+}
+
         .deactivate-btn {
             background-color: #dc2626;
             color: white;
@@ -585,6 +594,18 @@
         class="action-link management-btn"
     >
         Set Incharge
+    </a>
+
+{% endif %}
+
+
+{% if unit["unit_type"] == "Section" %}
+
+    <a
+        href="/admin/sections/{{ unit['id'] }}/head"
+        class="action-link head-btn"
+    >
+        Set Head
     </a>
 
 {% endif %}

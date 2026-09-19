@@ -99,6 +99,25 @@
             padding: 35px;
         }
 
+                    .end-btn {
+            background-color: #dc2626;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .end-btn:hover {
+            background-color: #b91c1c;
+        }
+
+        .ended-label {
+            color: #6b7280;
+            font-size: 13px;
+        }
+
     </style>
 
 </head>
@@ -162,6 +181,7 @@
                         <th>Start Date</th>
 
                         <th>Status</th>
+                           <th>Actions</th>
 
                     </tr>
 
@@ -233,7 +253,37 @@
 
                                 </td>
 
+                                                                <td>
 
+                                    {% if assignment["is_active"] == 1 %}
+
+                                        <form
+                                            method="POST"
+                                            action="/admin/posts/end/{{ assignment['id'] }}"
+                                            style="margin: 0;"
+                                            onsubmit="return confirm(
+                                                'Are you sure you want to end this post assignment?'
+                                            );"
+                                        >
+
+                                            <button
+                                                type="submit"
+                                                class="end-btn"
+                                            >
+                                                End Assignment
+                                            </button>
+
+                                        </form>
+
+                                    {% else %}
+
+                                        <span class="ended-label">
+                                            Ended
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>        
                             </tr>
 
 
@@ -245,7 +295,7 @@
 
                         <tr>
 
-                            <td colspan="6"
+                            <td colspan="7"
                                 class="empty">
 
                                 No post/charge assignments have been created yet.

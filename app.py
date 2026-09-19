@@ -1447,6 +1447,334 @@ def manage_division_management(division_id):
         management_history=management_history
     )
 
+# =================================================
+# SECTION HEAD
+# =================================================
+
+@app.route(
+    "/admin/sections/<int:section_id>/head",
+    methods=["GET", "POST"]
+)
+def manage_section_head(section_id):
+
+    connection = get_db_connection()
+
+    section = connection.execute("""
+        SELECT
+            section.id,
+            section.name,
+            section.parent_id,
+            section.is_active,
+            division.name AS division_name,
+            division.is_active AS division_is_active
+        FROM organizational_units AS section
+
+        JOIN organizational_units AS division
+            ON section.parent_id = division.id
+           AND division.unit_type = 'Division'
+
+        WHERE section.id = ?
+          AND section.unit_type = 'Section'
+    """, (section_id,)).fetchone()
+
+    if section is None:
+        connection.close()
+        return "Section not found.", 404
+
+    # Sirf woh employees eligible honge:
+    # 1. Jinke paas active Head post ho.
+    # 2. Jo isi Section ki parent Division mein posted hon.
+    eligible_employees = connection.execute("""
+        SELECT
+            employees.id,
+            employees.pin,
+            employees.name,
+            employee_post_assignments.id
+                AS post_assignment_id,
+            posts.name AS active_post,
+            employee_section.name AS home_section
+        FROM employees
+
+        JOIN employee_post_assignments
+            ON employee_post_assignments.employee_id
+               = employees.id
+           AND employee_post_assignments.is_active = 1
+
+        JOIN posts
+            ON employee_post_assignments.post_id
+               = posts.id
+           AND posts.is_active = 1
+           AND posts.name = 'Head'
+
+        JOIN employee_location_assignments
+            ON employee_location_assignments.employee_id
+               = employees.id
+           AND employee_location_assignments.is_active = 1
+           AND employee_location_assignments.organizational_unit_id
+               = ?
+
+        LEFT JOIN organizational_units AS employee_section
+            ON employee_location_assignments.section_id
+               = employee_section.id
+
+        WHERE employees.is_active = 1
+
+        ORDER BY
+            employees.name,
+            employees.pin
+    """, (section["parent_id"],)).fetchall()
+
+    current_head = connection.execute("""
+        SELECT
+            section_head_assignments.id,
+            section_head_assignments.employee_id,
+            section_head_assignments.post_assignment_id,
+            section_head_assignments.start_date,
+            employees.pin,
+            employees.name AS employee_name,
+            posts.name AS active_post
+        FROM section_head_assignments
+
+        JOIN employees
+            ON section_head_assignments.employee_id
+               = employees.id
+
+        LEFT JOIN employee_post_assignments
+            ON section_head_assignments.post_assignment_id
+               = employee_post_assignments.id
+
+        LEFT JOIN posts
+            ON employee_post_assignments.post_id
+               = posts.id
+
+        WHERE section_head_assignments.section_id = ?
+          AND section_head_assignments.is_active = 1
+    """, (section_id,)).fetchone()
+
+    if request.method == "POST":
+
+        employee_id_value = request.form.get(
+            "employee_id",
+            ""
+        ).strip()
+
+        if section["is_active"] == 0:
+            connection.close()
+
+            return (
+                "A Head cannot be assigned to an inactive Section.",
+                400
+            )
+
+        if section["division_is_active"] == 0:
+            connection.close()
+
+            return (
+                "A Head cannot be assigned because the parent "
+                "Division is inactive.",
+                400
+            )
+
+        if not employee_id_value.isdigit():
+            connection.close()
+            return "Please select an employee.", 400
+
+        employee_id = int(employee_id_value)
+
+        # Backend dobara tamam eligibility rules validate karega.
+        selected_employee = connection.execute("""
+            SELECT
+                employees.id,
+                employees.pin,
+                employees.name,
+                employee_post_assignments.id
+                    AS post_assignment_id,
+                posts.name AS active_post
+            FROM employees
+
+            JOIN employee_post_assignments
+                ON employee_post_assignments.employee_id
+                   = employees.id
+               AND employee_post_assignments.is_active = 1
+
+            JOIN posts
+                ON employee_post_assignments.post_id
+                   = posts.id
+               AND posts.is_active = 1
+               AND posts.name = 'Head'
+
+            JOIN employee_location_assignments
+                ON employee_location_assignments.employee_id
+                   = employees.id
+               AND employee_location_assignments.is_active = 1
+               AND employee_location_assignments.organizational_unit_id
+                   = ?
+
+            WHERE employees.id = ?
+              AND employees.is_active = 1
+        """, (
+            section["parent_id"],
+            employee_id
+        )).fetchone()
+
+        if selected_employee is None:
+            connection.close()
+
+            return (
+                "The selected employee must have an active Head post "
+                "and must be posted in this Section's parent Division.",
+                400
+            )
+
+        # Same Head dobara save ho to duplicate history nahi banegi.
+        if (
+            current_head is not None
+            and current_head["employee_id"] == employee_id
+        ):
+            connection.close()
+
+            return redirect(
+                f"/admin/sections/{section_id}/head"
+            )
+
+        post_assignment_id = selected_employee[
+            "post_assignment_id"
+        ]
+
+        try:
+
+            # Purane current Head ko history mein close karein.
+            if current_head is not None:
+
+                connection.execute("""
+                    UPDATE section_head_assignments
+                    SET is_active = 0,
+                        end_date = COALESCE(
+                            end_date,
+                            CURRENT_DATE
+                        )
+                    WHERE id = ?
+                """, (current_head["id"],))
+
+                old_post_assignment_id = current_head[
+                    "post_assignment_id"
+                ]
+
+                # Purana generic Section responsibility link close karein.
+                if old_post_assignment_id is not None:
+
+                    connection.execute("""
+                        UPDATE post_assignment_units
+                        SET is_active = 0,
+                            end_date = COALESCE(
+                                end_date,
+                                CURRENT_DATE
+                            )
+                        WHERE post_assignment_id = ?
+                          AND organizational_unit_id = ?
+                          AND is_active = 1
+                    """, (
+                        old_post_assignment_id,
+                        section_id
+                    ))
+
+            # Naya current Head assignment create karein.
+            connection.execute("""
+                INSERT INTO section_head_assignments
+                (
+                    employee_id,
+                    section_id,
+                    post_assignment_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, ?, CURRENT_DATE, 1)
+            """, (
+                employee_id,
+                section_id,
+                post_assignment_id
+            ))
+
+            # Historical generic link pehle se ho to reactivate karein.
+            updated_link = connection.execute("""
+                UPDATE post_assignment_units
+                SET start_date = CURRENT_DATE,
+                    end_date = NULL,
+                    is_active = 1
+                WHERE post_assignment_id = ?
+                  AND organizational_unit_id = ?
+            """, (
+                post_assignment_id,
+                section_id
+            ))
+
+            # Pehli assignment ho to new responsibility link banega.
+            if updated_link.rowcount == 0:
+
+                connection.execute("""
+                    INSERT INTO post_assignment_units
+                    (
+                        post_assignment_id,
+                        organizational_unit_id,
+                        start_date,
+                        is_active
+                    )
+                    VALUES (?, ?, CURRENT_DATE, 1)
+                """, (
+                    post_assignment_id,
+                    section_id
+                ))
+
+            connection.commit()
+
+        except sqlite3.IntegrityError as error:
+
+            connection.rollback()
+            connection.close()
+
+            return (
+                "This Head responsibility could not be saved. "
+                f"Database rule: {error}",
+                400
+            )
+
+        connection.close()
+
+        return redirect(
+            f"/admin/sections/{section_id}/head"
+        )
+
+    head_history = connection.execute("""
+        SELECT
+            section_head_assignments.id,
+            section_head_assignments.start_date,
+            section_head_assignments.end_date,
+            section_head_assignments.is_active,
+            employees.pin,
+            employees.name AS employee_name
+        FROM section_head_assignments
+
+        JOIN employees
+            ON section_head_assignments.employee_id
+               = employees.id
+
+        WHERE section_head_assignments.section_id = ?
+
+        ORDER BY
+            section_head_assignments.is_active DESC,
+            section_head_assignments.id DESC
+    """, (section_id,)).fetchall()
+
+    connection.close()
+
+    return render_template(
+        "assign_section_head.html",
+        section=section,
+        eligible_employees=eligible_employees,
+        current_head=current_head,
+        head_history=head_history
+    )
+
 
 # -------------------------------------------------
 # DESIGNATIONS
@@ -2335,6 +2663,48 @@ def edit_employee(employee_id):
 
             if location_changed:
 
+
+                                # Agar employee apni current Division chhor raha hai,
+                # to uski tamam active Section Head responsibilities
+                # automatically close ho jayengi.
+                #
+                # Same Division ke andar Section change karne par
+                # Head responsibility close nahi hogi.
+                if organizational_unit_id != current_unit_id:
+
+                    # Head post ke saath linked Section responsibilities
+                    # bhi history mein inactive karein.
+                    connection.execute("""
+                        UPDATE post_assignment_units
+                        SET is_active = 0,
+                            end_date = COALESCE(
+                                end_date,
+                                CURRENT_DATE
+                            )
+                        WHERE is_active = 1
+                          AND EXISTS (
+                                SELECT 1
+                                FROM section_head_assignments
+                                WHERE section_head_assignments.employee_id = ?
+                                  AND section_head_assignments.is_active = 1
+                                  AND section_head_assignments.post_assignment_id
+                                      = post_assignment_units.post_assignment_id
+                                  AND section_head_assignments.section_id
+                                      = post_assignment_units.organizational_unit_id
+                          )
+                    """, (employee_id,))
+
+                    connection.execute("""
+                        UPDATE section_head_assignments
+                        SET is_active = 0,
+                            end_date = COALESCE(
+                                end_date,
+                                CURRENT_DATE
+                            )
+                        WHERE employee_id = ?
+                          AND is_active = 1
+                    """, (employee_id,))
+
                 # Old Division/Office/Section assignment close karein.
                 connection.execute("""
                     UPDATE employee_location_assignments
@@ -2960,7 +3330,32 @@ def end_post_assignment(assignment_id):
                 Go Back
             </a>
         """, 404
+         # Post end hone se pehle us post ke saath linked
+    # Section Head responsibilities close karein.
+    connection.execute("""
+        UPDATE section_head_assignments
+        SET is_active = 0,
+            end_date = COALESCE(
+                end_date,
+                CURRENT_DATE
+            )
+        WHERE post_assignment_id = ?
+          AND is_active = 1
+    """, (assignment_id,))
 
+    # Manager ya Acting Manager ki linked Division
+    # responsibilities bhi history mein close karein.
+    connection.execute("""
+        UPDATE division_management_assignments
+        SET is_active = 0,
+            end_date = COALESCE(
+                end_date,
+                CURRENT_DATE
+            )
+        WHERE post_assignment_id = ?
+          AND is_active = 1
+    """, (assignment_id,))
+    
     # Responsible units ko inactive karein.
     # Records delete nahi honge.
     connection.execute("""
