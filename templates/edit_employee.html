@@ -4,11 +4,19 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Edit Employee</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -20,161 +28,459 @@
         .header {
             background-color: #1f2937;
             color: white;
-            padding: 20px 5%;
+            padding: 24px 5%;
         }
 
         .header h1 {
             margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #d1d5db;
         }
 
         .container {
             width: 90%;
-            max-width: 700px;
-            margin: 30px auto;
+            max-width: 780px;
+            margin: 35px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
         }
 
         .card {
             background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 18px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         label {
             display: block;
-            margin-top: 18px;
-            margin-bottom: 7px;
+            margin-top: 20px;
+            margin-bottom: 8px;
             font-weight: bold;
         }
 
         input,
         select {
             width: 100%;
-            padding: 11px;
-            box-sizing: border-box;
+            padding: 12px;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border-radius: 7px;
+            background-color: white;
+            font-size: 15px;
         }
 
-        .pin-box {
-            background-color: #f3f4f6;
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .help-text {
+            margin-top: 7px;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .info-box {
+            margin-bottom: 22px;
+            padding: 15px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 6px;
+            color: #1e3a8a;
+            line-height: 1.5;
+        }
+
+        .warning-box {
+            margin-top: 12px;
+            padding: 14px;
+            background-color: #fff7ed;
+            border-left: 4px solid #f97316;
+            border-radius: 6px;
+            color: #9a3412;
+            line-height: 1.5;
+        }
+
+        .section-field {
+            display: none;
+        }
+
+        .section-message {
+            display: none;
+            margin-top: 8px;
+            color: #b45309;
+            font-size: 13px;
+            font-weight: bold;
         }
 
         .buttons {
-            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 30px;
         }
 
         .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 7px;
             background-color: #2563eb;
             color: white;
-            border: none;
-            padding: 11px 18px;
-            border-radius: 6px;
             cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
         }
 
         .cancel {
-            margin-left: 10px;
-            text-decoration: none;
             color: #374151;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .cancel:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 650px) {
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full-width {
+                grid-column: auto;
+            }
+
+            .buttons {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .btn,
+            .cancel {
+                width: 100%;
+                text-align: center;
+            }
+
         }
 
     </style>
 
 </head>
 
-
 <body>
 
-
     <div class="header">
+
         <h1>Edit Employee</h1>
+
+        <p>
+            Update employee information, designation and location.
+        </p>
+
     </div>
 
 
     <div class="container">
 
+        <a
+            href="/admin/employees"
+            class="back-link"
+        >
+            ← Back to Employees
+        </a>
+
+
         <div class="card">
+
+            <h2>
+                {{ employee["name"] }}
+            </h2>
+
+            <p class="description">
+                PIN: {{ employee["pin"] }}
+            </p>
+
+
+            <div class="info-box">
+
+                Designation and location changes will preserve the employee's
+                previous assignment history.
+
+            </div>
+
 
             <form method="POST">
 
+                <div class="form-grid">
 
-                <label>PIN Number</label>
+                    <div>
 
-                <input
-                    type="text"
-                    value="{{ employee['pin'] }}"
-                    class="pin-box"
-                    readonly
-                >
+                        <label for="pin">
+                            PIN Number
+                        </label>
 
-
-                <label>Employee Name</label>
-
-                <input
-                    type="text"
-                    name="name"
-                    value="{{ employee['name'] }}"
-                    required
-                >
-
-
-                <label>Designation</label>
-
-                <select name="designation_id" required>
-
-                    {% for designation in designations %}
-
-                        <option
-                            value="{{ designation['id'] }}"
-                            {% if employee["designation_id"] == designation["id"] %}
-                                selected
-                            {% endif %}
+                        <input
+                            type="text"
+                            id="pin"
+                            name="pin"
+                            value="{{ employee['pin'] }}"
+                            required
+                            inputmode="numeric"
+                            pattern="[0-9]+"
+                            autocomplete="off"
                         >
-                            {{ designation["name"] }}
-                        </option>
 
-                    {% endfor %}
+                        <div class="help-text">
+                            Digits only. This PIN must remain unique.
+                        </div>
 
-                </select>
+                    </div>
 
 
-                <label>Division / Office / Unit</label>
+                    <div>
 
-                <select name="organizational_unit_id" required>
+                        <label for="extension_number">
+                            Extension Number
+                        </label>
 
-                    {% for unit in units %}
-
-                        <option
-                            value="{{ unit['id'] }}"
-                            {% if employee["organizational_unit_id"] == unit["id"] %}
-                                selected
-                            {% endif %}
+                        <input
+                            type="text"
+                            id="extension_number"
+                            name="extension_number"
+                            value="{{ employee['extension_number'] or '' }}"
+                            autocomplete="off"
+                            placeholder="Optional"
                         >
-                            {{ unit["name"] }}
-                        </option>
 
-                    {% endfor %}
-
-                </select>
+                    </div>
 
 
-                <label>Extension Number</label>
+                    <div class="full-width">
 
-                <input
-                    type="text"
-                    name="extension_number"
-                    value="{{ employee['extension_number'] or '' }}"
-                >
+                        <label for="name">
+                            Employee Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            value="{{ employee['name'] }}"
+                            required
+                            maxlength="150"
+                            autocomplete="off"
+                        >
+
+                    </div>
+
+
+                    <div class="full-width">
+
+                        <label for="designation_id">
+                            Designation
+                        </label>
+
+                        <select
+                            id="designation_id"
+                            name="designation_id"
+                            required
+                        >
+
+                            {% for designation in designations %}
+
+                                <option
+                                    value="{{ designation['id'] }}"
+                                    {% if
+                                        employee["current_designation_id"]
+                                        == designation["id"]
+                                    %}
+                                        selected
+                                    {% endif %}
+                                >
+
+                                    {{ designation["name"] }}
+
+                                    {% if designation["is_active"] == 0 %}
+                                        — Inactive Current Designation
+                                    {% endif %}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <div class="help-text">
+                            Changing designation will close the old assignment
+                            and create a new current assignment.
+                        </div>
+
+                    </div>
+
+
+                    <div class="full-width">
+
+                        <label for="organizational_unit_id">
+                            Division / Office
+                        </label>
+
+                        <select
+                            id="organizational_unit_id"
+                            name="organizational_unit_id"
+                        >
+
+                            <option
+                                value=""
+                                data-unit-type=""
+                                {% if employee["current_unit_id"] is none %}
+                                    selected
+                                {% endif %}
+                            >
+                                Without Division / Office
+                            </option>
+
+                            {% for unit in units %}
+
+                                <option
+                                    value="{{ unit['id'] }}"
+                                    data-unit-type="{{ unit['unit_type'] }}"
+                                    {% if
+                                        employee["current_unit_id"]
+                                        == unit["id"]
+                                    %}
+                                        selected
+                                    {% endif %}
+                                >
+
+                                    {{ unit["name"] }}
+                                    — {{ unit["unit_type"] }}
+
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <div class="warning-box">
+
+                            Selecting “Without Division / Office” will close
+                            the employee's current location assignment.
+
+                            The employee will remain in the system and can be
+                            assigned again later.
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="section_field"
+                        class="full-width section-field"
+                    >
+
+                        <label for="section_id">
+                            Section
+                        </label>
+
+                        <select
+                            id="section_id"
+                            name="section_id"
+                        >
+
+                            <option value="">
+                                Directly under Manager / No Section
+                            </option>
+
+                            {% for section in sections %}
+
+                                <option
+                                    value="{{ section['id'] }}"
+                                    data-parent-id="{{ section['parent_id'] }}"
+                                    {% if
+                                        employee["current_section_id"]
+                                        == section["id"]
+                                    %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ section["name"] }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <div class="help-text">
+                            Select a Section or leave blank if the employee
+                            reports directly to the Division Manager.
+                        </div>
+
+                        <div
+                            id="section_message"
+                            class="section-message"
+                        >
+                            This Division currently has no active Sections.
+                            The employee will report directly to its Manager.
+                        </div>
+
+                    </div>
+
+                </div>
 
 
                 <div class="buttons">
 
-                    <button type="submit" class="btn">
-                        Save Changes
+                    <button
+                        type="submit"
+                        class="btn"
+                    >
+                        Save Employee Changes
                     </button>
 
-                    <a href="/admin/employees" class="cancel">
+                    <a
+                        href="/admin/employees"
+                        class="cancel"
+                    >
                         Cancel
                     </a>
 
@@ -187,5 +493,91 @@
     </div>
 
 
+    <script>
+
+        const unitField =
+            document.getElementById("organizational_unit_id");
+
+        const sectionContainer =
+            document.getElementById("section_field");
+
+        const sectionField =
+            document.getElementById("section_id");
+
+        const sectionMessage =
+            document.getElementById("section_message");
+
+
+        function updateSections(resetSelection) {
+
+            const selectedUnitOption =
+                unitField.options[unitField.selectedIndex];
+
+            const selectedUnitId =
+                selectedUnitOption.value;
+
+            const selectedUnitType =
+                selectedUnitOption.dataset.unitType;
+
+            if (resetSelection) {
+                sectionField.value = "";
+            }
+
+            let availableSectionCount = 0;
+
+
+            for (const option of sectionField.options) {
+
+                if (option.value === "") {
+                    option.hidden = false;
+                    continue;
+                }
+
+                const belongsToSelectedDivision =
+                    option.dataset.parentId === selectedUnitId;
+
+                option.hidden = !belongsToSelectedDivision;
+
+                if (belongsToSelectedDivision) {
+                    availableSectionCount += 1;
+                }
+
+            }
+
+
+            if (selectedUnitType === "Division") {
+
+                sectionContainer.style.display = "block";
+
+                if (availableSectionCount === 0) {
+                    sectionMessage.style.display = "block";
+                } else {
+                    sectionMessage.style.display = "none";
+                }
+
+            } else {
+
+                sectionContainer.style.display = "none";
+                sectionMessage.style.display = "none";
+                sectionField.value = "";
+
+            }
+
+        }
+
+
+        unitField.addEventListener(
+            "change",
+            function () {
+                updateSections(true);
+            }
+        );
+
+
+        updateSections(false);
+
+    </script>
+
 </body>
+
 </html>

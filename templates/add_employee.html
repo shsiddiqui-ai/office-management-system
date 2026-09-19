@@ -4,11 +4,19 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Add Employee</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -20,53 +28,131 @@
         .header {
             background-color: #1f2937;
             color: white;
-            padding: 20px 5%;
+            padding: 24px 5%;
         }
 
         .header h1 {
             margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #d1d5db;
         }
 
         .container {
             width: 90%;
-            max-width: 700px;
-            margin: 30px auto;
+            max-width: 780px;
+            margin: 35px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
         }
 
         .card {
             background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0 18px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
         }
 
         label {
             display: block;
-            margin-top: 18px;
-            margin-bottom: 7px;
+            margin-top: 20px;
+            margin-bottom: 8px;
             font-weight: bold;
         }
 
         input,
         select {
             width: 100%;
-            box-sizing: border-box;
-            padding: 11px;
+            padding: 12px;
             border: 1px solid #d1d5db;
+            border-radius: 7px;
+            background-color: white;
+            font-size: 15px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .help-text {
+            margin-top: 7px;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .info-box {
+            margin-bottom: 22px;
+            padding: 15px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
             border-radius: 6px;
+            color: #1e3a8a;
+            line-height: 1.5;
+        }
+
+        .section-field {
+            display: none;
+        }
+
+        .section-message {
+            display: none;
+            margin-top: 8px;
+            color: #b45309;
+            font-size: 13px;
+            font-weight: bold;
         }
 
         .buttons {
-            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 30px;
         }
 
         .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 7px;
             background-color: #2563eb;
             color: white;
-            border: none;
-            padding: 11px 18px;
-            border-radius: 6px;
             cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
         }
 
         .btn:hover {
@@ -74,110 +160,264 @@
         }
 
         .cancel {
-            margin-left: 10px;
-            text-decoration: none;
             color: #374151;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .cancel:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 650px) {
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full-width {
+                grid-column: auto;
+            }
+
+            .buttons {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .btn,
+            .cancel {
+                width: 100%;
+                text-align: center;
+            }
+
         }
 
     </style>
 
 </head>
 
-
 <body>
-
 
     <div class="header">
 
         <h1>Add Employee</h1>
+
+        <p>
+            Create an employee with designation and organizational location.
+        </p>
 
     </div>
 
 
     <div class="container">
 
+        <a
+            href="/admin/employees"
+            class="back-link"
+        >
+            ← Back to Employees
+        </a>
+
 
         <div class="card">
+
+            <h2>Employee Information</h2>
+
+            <p class="description">
+                Enter the employee's official information and current location.
+            </p>
+
+
+            <div class="info-box">
+
+                An employee belongs to one Division or Office.
+
+                Section is optional, and is available only when the selected
+                Division contains active Sections.
+
+            </div>
 
 
             <form method="POST">
 
+                <div class="form-grid">
 
-                <label>PIN Number</label>
+                    <div>
 
-                <input
-                    type="text"
-                    name="pin"
-                    required
-                    placeholder="Employee PIN"
-                >
+                        <label for="pin">
+                            PIN Number
+                        </label>
 
+                        <input
+                            type="text"
+                            id="pin"
+                            name="pin"
+                            required
+                            inputmode="numeric"
+                            pattern="[0-9]+"
+                            autocomplete="off"
+                            placeholder="Example: 001234"
+                        >
 
-                <label>Employee Name</label>
+                        <div class="help-text">
+                            Digits only. Starting zero will be preserved.
+                        </div>
 
-                <input
-                    type="text"
-                    name="name"
-                    required
-                    placeholder="Full Name"
-                >
-
-
-                <label>Designation</label>
-
-                <select
-                    name="designation_id"
-                    required
-                >
-
-                    <option value="">
-                        Select Designation
-                    </option>
-
-                    {% for designation in designations %}
-
-                        <option value="{{ designation['id'] }}">
-
-                            {{ designation["name"] }}
-
-                        </option>
-
-                    {% endfor %}
-
-                </select>
+                    </div>
 
 
-                <label>Organizational Unit</label>
+                    <div>
 
-                <select
-                    name="organizational_unit_id"
-                    required
-                >
+                        <label for="extension_number">
+                            Extension Number
+                        </label>
 
-                    <option value="">
-                        Select Organizational Unit
-                    </option>
+                        <input
+                            type="text"
+                            id="extension_number"
+                            name="extension_number"
+                            autocomplete="off"
+                            placeholder="Optional"
+                        >
 
-                    {% for unit in units %}
+                        <div class="help-text">
+                            Extension number is optional.
+                        </div>
 
-                        <option value="{{ unit['id'] }}">
-
-                            {{ unit["name"] }}
-
-                        </option>
-
-                    {% endfor %}
-
-                </select>
+                    </div>
 
 
-                <label>Extension Number</label>
+                    <div class="full-width">
 
-                <input
-                    type="text"
-                    name="extension_number"
-                    placeholder="Optional"
-                >
+                        <label for="name">
+                            Employee Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            required
+                            maxlength="150"
+                            autocomplete="off"
+                            placeholder="Enter full name"
+                        >
+
+                    </div>
+
+
+                    <div class="full-width">
+
+                        <label for="designation_id">
+                            Designation
+                        </label>
+
+                        <select
+                            id="designation_id"
+                            name="designation_id"
+                            required
+                        >
+
+                            <option value="">
+                                Select Designation
+                            </option>
+
+                            {% for designation in designations %}
+
+                                <option value="{{ designation['id'] }}">
+                                    {{ designation["name"] }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="full-width">
+
+                        <label for="organizational_unit_id">
+                            Division / Office
+                        </label>
+
+                        <select
+                            id="organizational_unit_id"
+                            name="organizational_unit_id"
+                            required
+                        >
+
+                            <option
+                                value=""
+                                data-unit-type=""
+                            >
+                                Select Division or Office
+                            </option>
+
+                            {% for unit in units %}
+
+                                <option
+                                    value="{{ unit['id'] }}"
+                                    data-unit-type="{{ unit['unit_type'] }}"
+                                >
+                                    {{ unit["name"] }}
+                                    — {{ unit["unit_type"] }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                    </div>
+
+
+                    <div
+                        id="section_field"
+                        class="full-width section-field"
+                    >
+
+                        <label for="section_id">
+                            Section
+                        </label>
+
+                        <select
+                            id="section_id"
+                            name="section_id"
+                        >
+
+                            <option value="">
+                                Directly under Manager / No Section
+                            </option>
+
+                            {% for section in sections %}
+
+                                <option
+                                    value="{{ section['id'] }}"
+                                    data-parent-id="{{ section['parent_id'] }}"
+                                >
+                                    {{ section["name"] }}
+                                </option>
+
+                            {% endfor %}
+
+                        </select>
+
+                        <div class="help-text">
+                            Section is optional. Leave this blank if the employee
+                            reports directly to the Division Manager.
+                        </div>
+
+                        <div
+                            id="section_message"
+                            class="section-message"
+                        >
+                            This Division currently has no active Sections.
+                            The employee will report directly to its Manager.
+                        </div>
+
+                    </div>
+
+                </div>
 
 
                 <div class="buttons">
@@ -198,15 +438,93 @@
 
                 </div>
 
-
             </form>
-
 
         </div>
 
-
     </div>
 
+
+    <script>
+
+        const unitField =
+            document.getElementById("organizational_unit_id");
+
+        const sectionContainer =
+            document.getElementById("section_field");
+
+        const sectionField =
+            document.getElementById("section_id");
+
+        const sectionMessage =
+            document.getElementById("section_message");
+
+
+        function updateSections() {
+
+            const selectedUnitOption =
+                unitField.options[unitField.selectedIndex];
+
+            const selectedUnitId =
+                selectedUnitOption.value;
+
+            const selectedUnitType =
+                selectedUnitOption.dataset.unitType;
+
+            sectionField.value = "";
+
+            let availableSectionCount = 0;
+
+
+            for (const option of sectionField.options) {
+
+                if (option.value === "") {
+                    option.hidden = false;
+                    continue;
+                }
+
+                const belongsToSelectedDivision =
+                    option.dataset.parentId === selectedUnitId;
+
+                option.hidden = !belongsToSelectedDivision;
+
+                if (belongsToSelectedDivision) {
+                    availableSectionCount += 1;
+                }
+
+            }
+
+
+            if (selectedUnitType === "Division") {
+
+                sectionContainer.style.display = "block";
+
+                if (availableSectionCount === 0) {
+                    sectionMessage.style.display = "block";
+                } else {
+                    sectionMessage.style.display = "none";
+                }
+
+            } else {
+
+                sectionContainer.style.display = "none";
+                sectionMessage.style.display = "none";
+                sectionField.value = "";
+
+            }
+
+        }
+
+
+        unitField.addEventListener(
+            "change",
+            updateSections
+        );
+
+
+        updateSections();
+
+    </script>
 
 </body>
 

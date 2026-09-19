@@ -5,12 +5,18 @@
 
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Organizational Units</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -19,46 +25,41 @@
             color: #1f2937;
         }
 
-
         .header {
             background-color: #1f2937;
             color: white;
-            padding: 20px 5%;
+            padding: 24px 5%;
         }
-
 
         .header h1 {
             margin: 0;
+            font-size: 28px;
         }
 
-
         .header p {
-            margin: 7px 0 0;
+            margin: 8px 0 0;
             color: #d1d5db;
         }
 
-
         .container {
-            width: 90%;
-            max-width: 1100px;
-            margin: 30px auto;
+            width: 94%;
+            max-width: 1400px;
+            margin: 32px auto;
         }
-
 
         .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 15px;
             margin-bottom: 20px;
         }
 
-
         .back-link {
-            text-decoration: none;
             color: #2563eb;
+            text-decoration: none;
             font-weight: bold;
         }
-
 
         .btn {
             display: inline-block;
@@ -66,120 +67,210 @@
             color: white;
             text-decoration: none;
             padding: 11px 18px;
-            border-radius: 6px;
+            border-radius: 7px;
+            font-weight: bold;
         }
-
 
         .btn:hover {
             background-color: #1d4ed8;
         }
 
+        .info-box {
+            margin-bottom: 20px;
+            padding: 16px 18px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 7px;
+            color: #1e3a8a;
+            line-height: 1.5;
+        }
 
         .card {
             background-color: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
         }
 
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+
+        .card-subtitle {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #6b7280;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
 
         table {
             width: 100%;
+            min-width: 1100px;
             border-collapse: collapse;
-            margin-top: 15px;
         }
-
 
         th,
         td {
+            padding: 14px 12px;
             text-align: left;
-            padding: 14px;
+            vertical-align: top;
             border-bottom: 1px solid #e5e7eb;
         }
 
-
         th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        tr:hover {
             background-color: #f9fafb;
         }
 
+        .inactive-row {
+            background-color: #fafafa;
+            color: #6b7280;
+        }
+
+        .unit-name {
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .secondary-text {
+            display: block;
+            margin-top: 5px;
+            color: #6b7280;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .type-badge,
+        .status-badge {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .division {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .office {
+            background-color: #ede9fe;
+            color: #6d28d9;
+        }
+
+        .section {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .legacy {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
 
         .active {
+            background-color: #dcfce7;
             color: #15803d;
-            font-weight: bold;
         }
-
 
         .inactive {
+            background-color: #fee2e2;
             color: #b91c1c;
+        }
+
+        .not-assigned {
+            color: #b45309;
             font-weight: bold;
         }
 
+        .employee-count {
+            font-weight: bold;
+            color: #111827;
+        }
 
         .action-link {
             display: inline-block;
-            padding: 7px 12px;
-            margin-right: 6px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-size: 13px;
-            cursor: pointer;
+            margin: 2px 5px 2px 0;
+            padding: 7px 11px;
             border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: bold;
         }
-
 
         .edit-btn {
             background-color: #2563eb;
             color: white;
         }
 
-
         .edit-btn:hover {
             background-color: #1d4ed8;
         }
-
 
         .deactivate-btn {
             background-color: #dc2626;
             color: white;
         }
 
-
         .deactivate-btn:hover {
             background-color: #b91c1c;
         }
-
 
         .reactivate-btn {
             background-color: #16a34a;
             color: white;
         }
 
-
         .reactivate-btn:hover {
             background-color: #15803d;
         }
 
-
         .empty-message {
+            padding: 40px;
             text-align: center;
             color: #6b7280;
-            padding: 35px;
+        }
+
+        @media (max-width: 700px) {
+
+            .top-bar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                text-align: center;
+            }
+
         }
 
     </style>
 
 </head>
 
-
 <body>
-
 
     <div class="header">
 
         <h1>Organizational Units</h1>
 
         <p>
-            Manage divisions, offices and organizational reporting structure.
+            Manage Divisions, Offices, Sections and their current hierarchy.
         </p>
 
     </div>
@@ -187,213 +278,354 @@
 
     <div class="container">
 
-
         <div class="top-bar">
 
-
-            <a href="/admin"
-               class="back-link">
-
+            <a
+                href="/admin"
+                class="back-link"
+            >
                 ← Back to Admin Dashboard
-
             </a>
 
-
-            <a href="/admin/units/add"
-               class="btn">
-
+            <a
+                href="/admin/units/add"
+                class="btn"
+            >
                 + Add Organizational Unit
-
             </a>
 
+        </div>
+
+
+        <div class="info-box">
+
+            <strong>Structure:</strong>
+
+            Divisions report to Senior Director, Plant Manager or
+            Deputy Plant Manager.
+
+            Sections belong to Divisions.
+
+            Offices are staff-placement units and do not control Divisions.
 
         </div>
 
 
         <div class="card">
 
+            <h2>Current Organization Structure</h2>
 
-            <h2>Organization Structure</h2>
+            <p class="card-subtitle">
+                Active units appear first. Historical inactive units remain
+                available for audit and reactivation.
+            </p>
 
 
-            <table>
+            <div class="table-wrapper">
 
+                <table>
 
-                <thead>
-
-                    <tr>
-
-                        <th>Name</th>
-
-                        <th>Type</th>
-
-                        <th>Reports To</th>
-
-                        <th>Status</th>
-
-                        <th>Actions</th>
-
-                    </tr>
-
-                </thead>
-
-
-                <tbody>
-
-
-                    {% if units %}
-
-
-                        {% for unit in units %}
-
-
-                            <tr>
-
-
-                                <td>
-                                    {{ unit["name"] }}
-                                </td>
-
-
-                                <td>
-                                    {{ unit["unit_type"] }}
-                                </td>
-
-
-                                <td>
-
-                                    {% if unit["parent_name"] %}
-
-                                        {{ unit["parent_name"] }}
-
-                                    {% else %}
-
-                                        Top Level
-
-                                    {% endif %}
-
-                                </td>
-
-
-                                <td>
-
-                                    {% if unit["is_active"] == 1 %}
-
-                                        <span class="active">
-                                            Active
-                                        </span>
-
-                                    {% else %}
-
-                                        <span class="inactive">
-                                            Inactive
-                                        </span>
-
-                                    {% endif %}
-
-                                </td>
-
-
-                                <td>
-
-
-                                    <a
-                                        href="/admin/units/edit/{{ unit['id'] }}"
-                                        class="action-link edit-btn"
-                                    >
-
-                                        Edit
-
-                                    </a>
-
-
-                                    {% if unit["is_active"] == 1 %}
-
-
-                                        <form
-                                            method="POST"
-                                            action="/admin/units/deactivate/{{ unit['id'] }}"
-                                            style="display:inline;"
-                                        >
-
-                                            <button
-                                                type="submit"
-                                                class="action-link deactivate-btn"
-                                                onclick="return confirm('Are you sure you want to deactivate this unit?')"
-                                            >
-
-                                                Deactivate
-
-                                            </button>
-
-                                        </form>
-
-
-                                    {% else %}
-
-
-                                        <form
-                                            method="POST"
-                                            action="/admin/units/reactivate/{{ unit['id'] }}"
-                                            style="display:inline;"
-                                        >
-
-                                            <button
-                                                type="submit"
-                                                class="action-link reactivate-btn"
-                                                onclick="return confirm('Are you sure you want to reactivate this unit?')"
-                                            >
-
-                                                Reactivate
-
-                                            </button>
-
-                                        </form>
-
-
-                                    {% endif %}
-
-
-                                </td>
-
-
-                            </tr>
-
-
-                        {% endfor %}
-
-
-                    {% else %}
-
+                    <thead>
 
                         <tr>
 
-                            <td
-                                colspan="5"
-                                class="empty-message"
-                            >
+                            <th>Unit</th>
 
-                                No organizational units have been added yet.
+                            <th>Type</th>
 
-                            </td>
+                            <th>Reports / Belongs To</th>
+
+                            <th>Current Incharge</th>
+
+                            <th>Employees</th>
+
+                            <th>Status</th>
+
+                            <th>Actions</th>
 
                         </tr>
 
-
-                    {% endif %}
-
-
-                </tbody>
+                    </thead>
 
 
-            </table>
+                    <tbody>
 
+                        {% if units %}
+
+                            {% for unit in units %}
+
+                                <tr
+                                    {% if unit["is_active"] == 0 %}
+                                        class="inactive-row"
+                                    {% endif %}
+                                >
+
+                                    <td>
+
+                                        <span class="unit-name">
+                                            {{ unit["name"] }}
+                                        </span>
+
+                                        {% if unit["unit_type"] == "Division" %}
+
+                                            <span class="secondary-text">
+
+                                                {{ unit["active_section_count"] }}
+                                                active section(s)
+
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if unit["unit_type"] == "Division" %}
+
+                                            <span class="type-badge division">
+                                                Division
+                                            </span>
+
+                                        {% elif unit["unit_type"] == "Office" %}
+
+                                            <span class="type-badge office">
+                                                Office
+                                            </span>
+
+                                        {% elif unit["unit_type"] == "Section" %}
+
+                                            <span class="type-badge section">
+                                                Section
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="type-badge legacy">
+                                                {{ unit["unit_type"] }}
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if unit["unit_type"] == "Division" %}
+
+                                            {% if unit["reporting_authority"] %}
+
+                                                {{ unit["reporting_authority"] }}
+
+                                            {% else %}
+
+                                                <span class="not-assigned">
+                                                    Authority not assigned
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% elif unit["unit_type"] == "Section" %}
+
+                                            {% if unit["parent_name"] %}
+
+                                                {{ unit["parent_name"] }}
+
+                                            {% else %}
+
+                                                <span class="not-assigned">
+                                                    Parent Division missing
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% elif unit["unit_type"] == "Office" %}
+
+                                            <span class="secondary-text">
+                                                Staff placement unit
+                                            </span>
+
+                                        {% else %}
+
+                                            {% if unit["parent_name"] %}
+
+                                                {{ unit["parent_name"] }}
+
+                                            {% else %}
+
+                                                Top Level
+                                            {% endif %}
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if unit["unit_type"] == "Division" %}
+
+                                            {% if unit["manager_name"] %}
+
+                                                {{ unit["manager_name"] }}
+
+                                                <span class="secondary-text">
+                                                    {{ unit["manager_responsibility"] }}
+                                                </span>
+
+                                            {% else %}
+
+                                                <span class="not-assigned">
+                                                    Manager not assigned
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% elif unit["unit_type"] == "Section" %}
+
+                                            {% if unit["head_name"] %}
+
+                                                {{ unit["head_name"] }}
+
+                                                <span class="secondary-text">
+                                                    Head
+                                                </span>
+
+                                            {% else %}
+
+                                                <span class="secondary-text">
+                                                    No Head assigned
+                                                </span>
+
+                                            {% endif %}
+
+                                        {% else %}
+
+                                            <span class="secondary-text">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="employee-count">
+                                            {{ unit["employee_count"] }}
+                                        </span>
+
+                                        <span class="secondary-text">
+                                            active employee(s)
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if unit["is_active"] == 1 %}
+
+                                            <span class="status-badge active">
+                                                Active
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="status-badge inactive">
+                                                Inactive
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <a
+                                            href="/admin/units/edit/{{ unit['id'] }}"
+                                            class="action-link edit-btn"
+                                        >
+                                            Edit
+                                        </a>
+
+
+                                        {% if unit["is_active"] == 1 %}
+
+                                            <form
+                                                method="POST"
+                                                action="/admin/units/deactivate/{{ unit['id'] }}"
+                                                style="display:inline;"
+                                            >
+
+                                                <button
+                                                    type="submit"
+                                                    class="action-link deactivate-btn"
+                                                    onclick="return confirm(
+                                                        'Deactivate this unit? Employee and responsibility assignments will be updated according to its unit type.'
+                                                    )"
+                                                >
+                                                    Deactivate
+                                                </button>
+
+                                            </form>
+
+                                        {% else %}
+
+                                            <form
+                                                method="POST"
+                                                action="/admin/units/reactivate/{{ unit['id'] }}"
+                                                style="display:inline;"
+                                            >
+
+                                                <button
+                                                    type="submit"
+                                                    class="action-link reactivate-btn"
+                                                    onclick="return confirm(
+                                                        'Reactivate this organizational unit? Employees will not be reassigned automatically.'
+                                                    )"
+                                                >
+                                                    Reactivate
+                                                </button>
+
+                                            </form>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
+
+                            <tr>
+
+                                <td
+                                    colspan="7"
+                                    class="empty-message"
+                                >
+                                    No organizational units have been added yet.
+                                </td>
+
+                            </tr>
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
 
         </div>
 
-
     </div>
-
 
 </body>
 

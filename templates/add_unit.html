@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Add Organizational Unit</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -18,53 +28,113 @@
         .header {
             background-color: #1f2937;
             color: white;
-            padding: 20px 5%;
+            padding: 24px 5%;
         }
 
         .header h1 {
             margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #d1d5db;
         }
 
         .container {
             width: 90%;
-            max-width: 700px;
-            margin: 30px auto;
+            max-width: 760px;
+            margin: 35px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
         }
 
         .card {
             background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #6b7280;
+            line-height: 1.5;
         }
 
         label {
             display: block;
-            margin-top: 18px;
-            margin-bottom: 7px;
+            margin-top: 20px;
+            margin-bottom: 8px;
             font-weight: bold;
         }
 
         input,
         select {
             width: 100%;
-            padding: 11px;
-            box-sizing: border-box;
+            padding: 12px;
             border: 1px solid #d1d5db;
+            border-radius: 7px;
+            background-color: white;
+            font-size: 15px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .help-text {
+            margin-top: 7px;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .info-box {
+            margin-bottom: 24px;
+            padding: 15px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
             border-radius: 6px;
+            color: #1e3a8a;
+            line-height: 1.5;
+        }
+
+        .parent-section {
+            display: none;
         }
 
         .buttons {
-            margin-top: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 28px;
         }
 
         .btn {
             background-color: #2563eb;
             color: white;
             border: none;
-            padding: 11px 18px;
-            border-radius: 6px;
+            padding: 12px 20px;
+            border-radius: 7px;
             cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
         }
 
         .btn:hover {
@@ -72,9 +142,13 @@
         }
 
         .cancel {
-            margin-left: 10px;
             color: #374151;
             text-decoration: none;
+            font-weight: bold;
+        }
+
+        .cancel:hover {
+            text-decoration: underline;
         }
 
     </style>
@@ -84,45 +158,87 @@
 <body>
 
     <div class="header">
+
         <h1>Add Organizational Unit</h1>
+
+        <p>
+            Create a Division, Office or Section.
+        </p>
+
     </div>
+
 
     <div class="container">
 
+        <a
+            href="/admin/units"
+            class="back-link"
+        >
+            ← Back to Organizational Units
+        </a>
+
+
         <div class="card">
+
+            <h2>Unit Information</h2>
+
+            <p class="description">
+                Add the unit's official name and select its correct type.
+            </p>
+
+
+            <div class="info-box">
+
+                <strong>Organization rule:</strong>
+
+                Divisions and Offices are top-level staff units.
+
+                A Section must always belong to one active Division.
+
+            </div>
+
 
             <form method="POST">
 
-                <label>Unit Name</label>
+                <label for="name">
+                    Unit Name
+                </label>
 
                 <input
                     type="text"
+                    id="name"
                     name="name"
                     required
+                    maxlength="150"
+                    autocomplete="off"
                     placeholder="Example: Cyber Security & Communication"
                 >
 
+                <div class="help-text">
+                    Capitalization and extra spaces will not create a duplicate.
+                </div>
 
-                <label>Unit Type</label>
 
-                <select name="unit_type" required>
+                <label for="unit_type">
+                    Unit Type
+                </label>
 
-                    <option value="">Select Type</option>
+                <select
+                    id="unit_type"
+                    name="unit_type"
+                    required
+                >
 
-                    <option value="Authority">
-                        Authority
-                    </option>
-
-                    <option value="Office">
-                        Office
+                    <option value="">
+                        Select Unit Type
                     </option>
 
                     <option value="Division">
                         Division
                     </option>
 
-                    <option value="Department">
-                        Department
+                    <option value="Office">
+                        Office
                     </option>
 
                     <option value="Section">
@@ -132,32 +248,54 @@
                 </select>
 
 
-                <label>Reports To</label>
+                <div
+                    id="parent_section"
+                    class="parent-section"
+                >
 
-                <select name="parent_id">
+                    <label for="parent_id">
+                        Parent Division
+                    </label>
 
-                    <option value="">
-                        Top Level / No Parent
-                    </option>
+                    <select
+                        id="parent_id"
+                        name="parent_id"
+                    >
 
-                    {% for unit in parent_units %}
+                        <option value="">
+                            Select Parent Division
+                        </option>
 
-                    <option value="{{ unit['id'] }}">
-                        {{ unit["name"] }}
-                    </option>
+                        {% for unit in parent_units %}
 
-                    {% endfor %}
+                            <option value="{{ unit['id'] }}">
+                                {{ unit["name"] }}
+                            </option>
 
-                </select>
+                        {% endfor %}
+
+                    </select>
+
+                    <div class="help-text">
+                        This Section will operate inside the selected Division.
+                    </div>
+
+                </div>
 
 
                 <div class="buttons">
 
-                    <button type="submit" class="btn">
-                        Save Unit
+                    <button
+                        type="submit"
+                        class="btn"
+                    >
+                        Save Organizational Unit
                     </button>
 
-                    <a href="/admin/units" class="cancel">
+                    <a
+                        href="/admin/units"
+                        class="cancel"
+                    >
                         Cancel
                     </a>
 
@@ -169,5 +307,49 @@
 
     </div>
 
+
+    <script>
+
+        const unitTypeField =
+            document.getElementById("unit_type");
+
+        const parentSection =
+            document.getElementById("parent_section");
+
+        const parentField =
+            document.getElementById("parent_id");
+
+
+        function updateParentDivisionField() {
+
+            const selectedType = unitTypeField.value;
+
+            if (selectedType === "Section") {
+
+                parentSection.style.display = "block";
+                parentField.required = true;
+
+            } else {
+
+                parentSection.style.display = "none";
+                parentField.required = false;
+                parentField.value = "";
+
+            }
+
+        }
+
+
+        unitTypeField.addEventListener(
+            "change",
+            updateParentDivisionField
+        );
+
+
+        updateParentDivisionField();
+
+    </script>
+
 </body>
+
 </html>

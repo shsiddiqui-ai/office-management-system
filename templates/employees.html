@@ -4,11 +4,19 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Employees</title>
 
     <style>
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -20,46 +28,49 @@
         .header {
             background-color: #1f2937;
             color: white;
-            padding: 20px 5%;
+            padding: 24px 5%;
         }
 
         .header h1 {
             margin: 0;
+            font-size: 28px;
         }
 
         .header p {
-            margin: 7px 0 0;
+            margin: 8px 0 0;
             color: #d1d5db;
         }
 
         .container {
-            width: 90%;
-            max-width: 1200px;
-            margin: 30px auto;
+            width: 94%;
+            max-width: 1450px;
+            margin: 32px auto;
         }
 
         .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 15px;
             margin-bottom: 20px;
         }
 
         .back-link {
-            text-decoration: none;
             color: #2563eb;
+            text-decoration: none;
             font-weight: bold;
         }
 
         .btn {
             display: inline-block;
+            padding: 11px 18px;
+            border: none;
+            border-radius: 7px;
             background-color: #2563eb;
             color: white;
             text-decoration: none;
-            padding: 11px 18px;
-            border-radius: 6px;
-            border: none;
             cursor: pointer;
+            font-weight: bold;
         }
 
         .btn:hover {
@@ -68,9 +79,9 @@
 
         .card {
             background-color: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
         }
 
         .search-box {
@@ -81,69 +92,119 @@
 
         .search-box input {
             flex: 1;
+            min-width: 200px;
             padding: 12px;
             border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border-radius: 7px;
             font-size: 14px;
         }
 
+        .search-box input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
         .search-help {
+            margin-bottom: 22px;
             color: #6b7280;
             font-size: 13px;
-            margin-bottom: 22px;
         }
 
         .clear-btn {
             display: inline-block;
             padding: 11px 16px;
+            border-radius: 7px;
             background-color: #6b7280;
             color: white;
             text-decoration: none;
-            border-radius: 6px;
+            font-weight: bold;
         }
 
         .clear-btn:hover {
             background-color: #4b5563;
         }
 
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
         table {
             width: 100%;
+            min-width: 1250px;
             border-collapse: collapse;
         }
 
         th,
         td {
-            padding: 14px;
+            padding: 14px 11px;
             text-align: left;
+            vertical-align: top;
             border-bottom: 1px solid #e5e7eb;
         }
 
         th {
             background-color: #f9fafb;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
         }
 
         tr:hover {
             background-color: #f9fafb;
         }
 
-        .active {
-            color: #15803d;
+        .employee-name {
+            font-weight: bold;
+            color: #111827;
+        }
+
+        .secondary-text {
+            display: block;
+            margin-top: 5px;
+            color: #6b7280;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .missing {
+            color: #b45309;
             font-weight: bold;
         }
 
-        .inactive {
-            color: #b91c1c;
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
             font-weight: bold;
+        }
+
+        .active {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .inactive {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .inactive-row {
+            background-color: #fafafa;
+            color: #6b7280;
         }
 
         .edit-btn {
             display: inline-block;
+            padding: 7px 12px;
+            border-radius: 5px;
             background-color: #2563eb;
             color: white;
             text-decoration: none;
-            padding: 7px 12px;
-            border-radius: 5px;
             font-size: 13px;
+            font-weight: bold;
         }
 
         .edit-btn:hover {
@@ -151,25 +212,38 @@
         }
 
         .empty {
+            padding: 40px;
             text-align: center;
             color: #6b7280;
-            padding: 35px;
+        }
+
+        @media (max-width: 750px) {
+
+            .top-bar,
+            .search-box {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .btn,
+            .clear-btn {
+                text-align: center;
+            }
+
         }
 
     </style>
 
 </head>
 
-
 <body>
-
 
     <div class="header">
 
         <h1>Employees</h1>
 
         <p>
-            Manage employees and their organizational assignments.
+            View employee designation, location, Section and current post.
         </p>
 
     </div>
@@ -177,14 +251,19 @@
 
     <div class="container">
 
-
         <div class="top-bar">
 
-            <a href="/admin" class="back-link">
+            <a
+                href="/admin"
+                class="back-link"
+            >
                 ← Back to Admin Dashboard
             </a>
 
-            <a href="/admin/employees/add" class="btn">
+            <a
+                href="/admin/employees/add"
+                class="btn"
+            >
                 + Add Employee
             </a>
 
@@ -193,8 +272,10 @@
 
         <div class="card">
 
-
-            <form method="GET" class="search-box">
+            <form
+                method="GET"
+                class="search-box"
+            >
 
                 <input
                     type="text"
@@ -204,13 +285,19 @@
                     autocomplete="off"
                 >
 
-                <button type="submit" class="btn">
+                <button
+                    type="submit"
+                    class="btn"
+                >
                     Search
                 </button>
 
                 {% if search %}
 
-                    <a href="/admin/employees" class="clear-btn">
+                    <a
+                        href="/admin/employees"
+                        class="clear-btn"
+                    >
                         Clear
                     </a>
 
@@ -220,134 +307,240 @@
 
 
             <div class="search-help">
-                Search by name, PIN, designation, division/unit or extension number.
+
+                Search by PIN, employee name, designation, Division,
+                Office, Section, post or extension number.
+
             </div>
 
 
-            <table>
+            <div class="table-wrapper">
 
-                <thead>
+                <table>
 
-                    <tr>
-                        <th>PIN</th>
-                        <th>Name</th>
-                        <th>Designation</th>
-                        <th>Division / Unit</th>
-                        <th>Extension</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
+                    <thead>
 
-                </thead>
+                        <tr>
+
+                            <th>PIN</th>
+
+                            <th>Employee</th>
+
+                            <th>Designation</th>
+
+                            <th>Division / Office</th>
+
+                            <th>Section</th>
+
+                            <th>Post</th>
+
+                            <th>Extension</th>
+
+                            <th>Status</th>
+
+                            <th>Actions</th>
+
+                        </tr>
+
+                    </thead>
 
 
-                <tbody>
+                    <tbody>
 
-                    {% if employees %}
+                        {% if employees %}
+
+                            {% for employee in employees %}
+
+                                <tr
+                                    {% if employee["is_active"] == 0 %}
+                                        class="inactive-row"
+                                    {% endif %}
+                                >
+
+                                    <td>
+                                        {{ employee["pin"] }}
+                                    </td>
 
 
-                        {% for employee in employees %}
+                                    <td>
+
+                                        <span class="employee-name">
+                                            {{ employee["name"] }}
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["designation_name"] %}
+
+                                            {{ employee["designation_name"] }}
+
+                                        {% else %}
+
+                                            <span class="missing">
+                                                Not assigned
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["unit_name"] %}
+
+                                            {{ employee["unit_name"] }}
+
+                                            <span class="secondary-text">
+                                                {{ employee["unit_type"] }}
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="missing">
+                                                Without Division
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["section_name"] %}
+
+                                            {{ employee["section_name"] }}
+
+                                        {% elif employee["unit_type"] == "Division" %}
+
+                                            <span class="secondary-text">
+                                                Directly under Manager
+                                            </span>
+
+                                        {% elif employee["unit_type"] == "Office" %}
+
+                                            <span class="secondary-text">
+                                                Not applicable
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="secondary-text">
+                                                Without Section
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["post_name"] %}
+
+                                            {{ employee["post_name"] }}
+
+                                        {% else %}
+
+                                            <span class="secondary-text">
+                                                No active post
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["extension_number"] %}
+
+                                            {{ employee["extension_number"] }}
+
+                                        {% else %}
+
+                                            <span class="secondary-text">
+                                                —
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if employee["is_active"] == 1 %}
+
+                                            <span class="status active">
+                                                Active
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="status inactive">
+                                                Inactive
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <a
+                                            href="/admin/employees/edit/{{ employee['id'] }}"
+                                            class="edit-btn"
+                                        >
+                                            Edit
+                                        </a>
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
 
                             <tr>
 
-                                <td>
-                                    {{ employee["pin"] }}
-                                </td>
+                                <td
+                                    colspan="9"
+                                    class="empty"
+                                >
 
-                                <td>
-                                    {{ employee["name"] }}
-                                </td>
+                                    {% if search %}
 
-                                <td>
-                                    {{ employee["designation_name"] }}
-                                </td>
-
-                                <td>
-                                    {{ employee["unit_name"] }}
-                                </td>
-
-                                <td>
-
-                                    {% if employee["extension_number"] %}
-
-                                        {{ employee["extension_number"] }}
+                                        No employee found matching
+                                        "{{ search }}".
 
                                     {% else %}
 
-                                        -
+                                        No employees have been added yet.
 
                                     {% endif %}
-
-                                </td>
-
-                                <td>
-
-                                    {% if employee["is_active"] == 1 %}
-
-                                        <span class="active">
-                                            Active
-                                        </span>
-
-                                    {% else %}
-
-                                        <span class="inactive">
-                                            Inactive
-                                        </span>
-
-                                    {% endif %}
-
-                                </td>
-
-                                <td>
-
-                                    <a
-                                        href="/admin/employees/edit/{{ employee['id'] }}"
-                                        class="edit-btn"
-                                    >
-                                        Edit
-                                    </a>
 
                                 </td>
 
                             </tr>
 
-                        {% endfor %}
+                        {% endif %}
 
+                    </tbody>
 
-                    {% else %}
+                </table>
 
-
-                        <tr>
-
-                            <td colspan="7" class="empty">
-
-                                {% if search %}
-
-                                    No employee found matching "{{ search }}".
-
-                                {% else %}
-
-                                    No employees have been added yet.
-
-                                {% endif %}
-
-                            </td>
-
-                        </tr>
-
-
-                    {% endif %}
-
-                </tbody>
-
-            </table>
-
+            </div>
 
         </div>
 
-
     </div>
-
 
 </body>
 

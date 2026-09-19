@@ -10,6 +10,8 @@ def get_db_connection():
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
+def clean_name(value):
+    return " ".join(value.strip().split())
 
 @app.route("/")
 def home():
@@ -28,26 +30,118 @@ def admin_dashboard():
 
 @app.route("/admin/units")
 def manage_units():
+
     connection = get_db_connection()
 
     units = connection.execute("""
         SELECT
-            organizational_units.id,
-            organizational_units.name,
-            organizational_units.unit_type,
-            organizational_units.is_active,
-            parent.name AS parent_name
-        FROM organizational_units
+            unit.id,
+            unit.name,
+            unit.unit_type,
+            unit.parent_id,
+            unit.is_active,
+
+            parent.name AS parent_name,
+
+            authority_post.name AS reporting_authority,
+
+            manager_employee.name AS manager_name,
+
+            division_manager.responsibility_type
+                AS manager_responsibility,
+
+            head_employee.name AS head_name,
+
+            CASE
+
+                WHEN unit.unit_type = 'Section' THEN (
+
+                    SELECT COUNT(*)
+                    FROM employee_location_assignments
+                    WHERE section_id = unit.id
+                      AND is_active = 1
+                )
+
+                ELSE (
+
+                    SELECT COUNT(*)
+                    FROM employee_location_assignments
+                    WHERE organizational_unit_id = unit.id
+                      AND is_active = 1
+                )
+
+            END AS employee_count,
+
+            CASE
+
+                WHEN unit.unit_type = 'Division' THEN (
+
+                    SELECT COUNT(*)
+                    FROM organizational_units AS child_section
+                    WHERE child_section.parent_id = unit.id
+                      AND child_section.unit_type = 'Section'
+                      AND child_section.is_active = 1
+                )
+
+                ELSE 0
+
+            END AS active_section_count
+
+        FROM organizational_units AS unit
+
         LEFT JOIN organizational_units AS parent
-            ON organizational_units.parent_id = parent.id
-        ORDER BY organizational_units.id DESC
+            ON unit.parent_id = parent.id
+
+        LEFT JOIN division_reporting_assignments
+            AS division_reporting
+
+            ON division_reporting.division_id = unit.id
+           AND division_reporting.is_active = 1
+
+        LEFT JOIN posts AS authority_post
+            ON division_reporting.authority_post_id
+               = authority_post.id
+
+        LEFT JOIN division_management_assignments
+            AS division_manager
+
+            ON division_manager.division_id = unit.id
+           AND division_manager.is_active = 1
+
+        LEFT JOIN employees AS manager_employee
+            ON division_manager.employee_id
+               = manager_employee.id
+
+        LEFT JOIN section_head_assignments
+            AS section_head
+
+            ON section_head.section_id = unit.id
+           AND section_head.is_active = 1
+
+        LEFT JOIN employees AS head_employee
+            ON section_head.employee_id
+               = head_employee.id
+
+        ORDER BY
+
+            unit.is_active DESC,
+
+            CASE unit.unit_type
+                WHEN 'Division' THEN 1
+                WHEN 'Office' THEN 2
+                WHEN 'Section' THEN 3
+                ELSE 4
+            END,
+
+            unit.name
     """).fetchall()
 
     connection.close()
 
-    return render_template("units.html", units=units)
-
-
+    return render_template(
+        "units.html",
+        units=units
+    )
 @app.route("/admin/units/add", methods=["GET", "POST"])
 def add_unit():
 
@@ -55,28 +149,146 @@ def add_unit():
 
     if request.method == "POST":
 
-        name = request.form["name"]
-        unit_type = request.form["unit_type"]
-        parent_id = request.form.get("parent_id")
+        name = clean_name(request.form.get("name", ""))
+        unit_type = request.form.get("unit_type", "").strip()
+        parent_id_value = request.form.get("parent_id", "").strip()
 
-        if parent_id == "":
+        # Empty ya sirf spaces wala name allow nahi hoga.
+        if not name:
+            connection.close()
+            return "Unit name is required.", 400
+
+        # New structure mein sirf ye three unit types create honge.
+        allowed_unit_types = (
+            "Division",
+            "Office",
+            "Section"
+        )
+
+        if unit_type not in allowed_unit_types:
+            connection.close()
+            return "Invalid organizational unit type.", 400
+
+        parent_id = None
+
+        # Section ke liye parent Division lazmi hai.
+        if unit_type == "Section":
+
+            if not parent_id_value.isdigit():
+                connection.close()
+                return "A Section must belong to an active Division.", 400
+
+            parent_id = int(parent_id_value)
+
+            parent_division = connection.execute("""
+                SELECT id
+                FROM organizational_units
+                WHERE id = ?
+                  AND unit_type = 'Division'
+                  AND is_active = 1
+            """, (parent_id,)).fetchone()
+
+            if parent_division is None:
+                connection.close()
+                return "The selected parent must be an active Division.", 400
+
+        # Division aur Office kisi unit ke child nahi honge.
+        else:
             parent_id = None
 
-        connection.execute("""
+        # Duplicate checking ke liye relevant existing units load karein.
+        if unit_type == "Section":
+
+            existing_units = connection.execute("""
+                SELECT id, name, is_active
+                FROM organizational_units
+                WHERE unit_type = 'Section'
+                  AND parent_id = ?
+            """, (parent_id,)).fetchall()
+
+        else:
+
+            existing_units = connection.execute("""
+                SELECT id, name, is_active
+                FROM organizational_units
+                WHERE unit_type = ?
+            """, (unit_type,)).fetchall()
+
+        normalized_new_name = name.casefold()
+
+        duplicate_unit = None
+
+        for existing_unit in existing_units:
+
+            existing_name = clean_name(
+                existing_unit["name"]
+            ).casefold()
+
+            if existing_name == normalized_new_name:
+                duplicate_unit = existing_unit
+                break
+
+        if duplicate_unit:
+
+            connection.close()
+
+            if duplicate_unit["is_active"] == 1:
+                return (
+                    f"{unit_type} '{name}' already exists.",
+                    400
+                )
+
+            return (
+                f"{unit_type} '{name}' already exists but is inactive. "
+                "Reactivate the existing unit instead of creating a duplicate.",
+                400
+            )
+
+        # New Division, Office ya Section create karein.
+        cursor = connection.execute("""
             INSERT INTO organizational_units
-            (name, unit_type, parent_id)
+            (
+                name,
+                unit_type,
+                parent_id
+            )
             VALUES (?, ?, ?)
-        """, (name, unit_type, parent_id))
+        """, (
+            name,
+            unit_type,
+            parent_id
+        ))
+
+        new_unit_id = cursor.lastrowid
+
+        # Initial unit name ko history mein bhi save karein.
+        connection.execute("""
+            INSERT INTO organizational_unit_name_history
+            (
+                organizational_unit_id,
+                name,
+                normalized_name,
+                start_date,
+                is_current
+            )
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, 1)
+        """, (
+            new_unit_id,
+            name,
+            normalized_new_name
+        ))
 
         connection.commit()
         connection.close()
 
         return redirect("/admin/units")
 
+    # Section parent dropdown mein sirf active Divisions dikhengi.
     parent_units = connection.execute("""
         SELECT id, name
         FROM organizational_units
-        WHERE is_active = 1
+        WHERE unit_type = 'Division'
+          AND is_active = 1
         ORDER BY name
     """).fetchall()
 
@@ -87,50 +299,216 @@ def add_unit():
         parent_units=parent_units
     )
 
-
 @app.route("/admin/units/edit/<int:unit_id>", methods=["GET", "POST"])
 def edit_unit(unit_id):
 
     connection = get_db_connection()
 
     unit = connection.execute("""
-        SELECT *
+        SELECT
+            id,
+            name,
+            unit_type,
+            parent_id,
+            is_active
         FROM organizational_units
         WHERE id = ?
     """, (unit_id,)).fetchone()
 
     if unit is None:
         connection.close()
-        return "Organizational unit not found", 404
+        return "Organizational unit not found.", 404
 
     if request.method == "POST":
 
-        name = request.form["name"]
-        unit_type = request.form["unit_type"]
-        parent_id = request.form.get("parent_id")
+        name = clean_name(request.form.get("name", ""))
+        parent_id_value = request.form.get(
+            "parent_id",
+            ""
+        ).strip()
 
-        if parent_id == "":
-            parent_id = None
+        if not name:
+            connection.close()
+            return "Unit name is required.", 400
+
+        unit_type = unit["unit_type"]
+        old_parent_id = unit["parent_id"]
+        new_parent_id = old_parent_id
+
+        # Section ka parent hamesha active Division hoga.
+        if unit_type == "Section":
+
+            if not parent_id_value.isdigit():
+                connection.close()
+                return "A Section must belong to an active Division.", 400
+
+            new_parent_id = int(parent_id_value)
+
+            parent_division = connection.execute("""
+                SELECT id
+                FROM organizational_units
+                WHERE id = ?
+                  AND unit_type = 'Division'
+                  AND is_active = 1
+            """, (new_parent_id,)).fetchone()
+
+            if parent_division is None:
+                connection.close()
+                return "The selected parent must be an active Division.", 400
+
+            # Section ko doosri Division mein move karne se pehle
+            # ensure karein ke koi active employee us Section mein na ho.
+            if new_parent_id != old_parent_id:
+
+                active_employee_count = connection.execute("""
+                    SELECT COUNT(*) AS total
+                    FROM employee_location_assignments
+                    WHERE section_id = ?
+                      AND is_active = 1
+                """, (unit_id,)).fetchone()["total"]
+
+                active_head_count = connection.execute("""
+                    SELECT COUNT(*) AS total
+                    FROM section_head_assignments
+                    WHERE section_id = ?
+                      AND is_active = 1
+                """, (unit_id,)).fetchone()["total"]
+
+                if active_employee_count > 0:
+                    connection.close()
+
+                    return (
+                        "This Section cannot be moved because it has "
+                        f"{active_employee_count} active employee(s). "
+                        "Transfer or remove those employees from the "
+                        "Section first.",
+                        400
+                    )
+
+                if active_head_count > 0:
+                    connection.close()
+
+                    return (
+                        "This Section cannot be moved because it has "
+                        "an active Head. End the Head responsibility first.",
+                        400
+                    )
+
+        # Division aur Office Section ke child nahi honge.
+        elif unit_type in ("Division", "Office"):
+            new_parent_id = None
+
+        # Purane legacy unit types ka parent automatically change nahi hoga.
         else:
-            parent_id = int(parent_id)
+            new_parent_id = old_parent_id
 
+        # Duplicate name checking.
+        if unit_type == "Section":
+
+            existing_units = connection.execute("""
+                SELECT id, name, is_active
+                FROM organizational_units
+                WHERE unit_type = 'Section'
+                  AND parent_id = ?
+                  AND id != ?
+            """, (
+                new_parent_id,
+                unit_id
+            )).fetchall()
+
+        else:
+
+            existing_units = connection.execute("""
+                SELECT id, name, is_active
+                FROM organizational_units
+                WHERE unit_type = ?
+                  AND id != ?
+            """, (
+                unit_type,
+                unit_id
+            )).fetchall()
+
+        normalized_new_name = name.casefold()
+        duplicate_unit = None
+
+        for existing_unit in existing_units:
+
+            existing_name = clean_name(
+                existing_unit["name"]
+            ).casefold()
+
+            if existing_name == normalized_new_name:
+                duplicate_unit = existing_unit
+                break
+
+        if duplicate_unit:
+
+            connection.close()
+
+            if duplicate_unit["is_active"] == 1:
+                return (
+                    f"Another {unit_type} named '{name}' already exists.",
+                    400
+                )
+
+            return (
+                f"An inactive {unit_type} named '{name}' already exists. "
+                "Reactivate that unit instead of creating a duplicate name.",
+                400
+            )
+
+        old_clean_name = clean_name(unit["name"])
+
+        # Agar official name change hua hai to old history close karein.
+        if old_clean_name != name:
+
+            connection.execute("""
+                UPDATE organizational_unit_name_history
+                SET is_current = 0,
+                    end_date = CURRENT_TIMESTAMP
+                WHERE organizational_unit_id = ?
+                  AND is_current = 1
+            """, (unit_id,))
+
+            connection.execute("""
+                INSERT INTO organizational_unit_name_history
+                (
+                    organizational_unit_id,
+                    name,
+                    normalized_name,
+                    start_date,
+                    is_current
+                )
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, 1)
+            """, (
+                unit_id,
+                name,
+                normalized_new_name
+            ))
+
+        # Current master record update karein.
         connection.execute("""
             UPDATE organizational_units
             SET name = ?,
-                unit_type = ?,
                 parent_id = ?
             WHERE id = ?
-        """, (name, unit_type, parent_id, unit_id))
+        """, (
+            name,
+            new_parent_id,
+            unit_id
+        ))
 
         connection.commit()
         connection.close()
 
         return redirect("/admin/units")
 
+    # Section edit form ke liye active Divisions.
     parent_units = connection.execute("""
         SELECT id, name
         FROM organizational_units
-        WHERE is_active = 1
+        WHERE unit_type = 'Division'
+          AND is_active = 1
           AND id != ?
         ORDER BY name
     """, (unit_id,)).fetchall()
@@ -142,13 +520,245 @@ def edit_unit(unit_id):
         unit=unit,
         parent_units=parent_units
     )
-
-
 @app.route("/admin/units/deactivate/<int:unit_id>", methods=["POST"])
 def deactivate_unit(unit_id):
 
     connection = get_db_connection()
 
+    unit = connection.execute("""
+        SELECT
+            id,
+            name,
+            unit_type,
+            parent_id,
+            is_active
+        FROM organizational_units
+        WHERE id = ?
+    """, (unit_id,)).fetchone()
+
+    if unit is None:
+        connection.close()
+        return "Organizational unit not found.", 404
+
+    if unit["is_active"] == 0:
+        connection.close()
+        return redirect("/admin/units")
+
+    unit_type = unit["unit_type"]
+
+    # =================================================
+    # DIVISION DEACTIVATION
+    # =================================================
+
+    if unit_type == "Division":
+
+        child_sections = connection.execute("""
+            SELECT id
+            FROM organizational_units
+            WHERE unit_type = 'Section'
+              AND parent_id = ?
+        """, (unit_id,)).fetchall()
+
+        child_section_ids = [
+            section["id"]
+            for section in child_sections
+        ]
+
+        # Division ke employees Without Division ho jayenge.
+        # Unki Section bhi automatically end ho jayegi.
+        connection.execute("""
+            UPDATE employee_location_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE organizational_unit_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        # Division ki reporting authority history close karein.
+        connection.execute("""
+            UPDATE division_reporting_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE division_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        # Manager ya Acting Manager responsibility close karein.
+        connection.execute("""
+            UPDATE division_management_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE division_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        # Division ke tamam Sections bhi inactive honge.
+        if child_section_ids:
+
+            placeholders = ",".join(
+                "?"
+                for section_id in child_section_ids
+            )
+
+            connection.execute(
+                f"""
+                UPDATE organizational_units
+                SET is_active = 0
+                WHERE id IN ({placeholders})
+                """,
+                child_section_ids
+            )
+
+            # Sections ke active Heads close karein.
+            connection.execute(
+                f"""
+                UPDATE section_head_assignments
+                SET is_active = 0,
+                    end_date = COALESCE(
+                        end_date,
+                        CURRENT_DATE
+                    )
+                WHERE section_id IN ({placeholders})
+                  AND is_active = 1
+                """,
+                child_section_ids
+            )
+
+        # Purane generic responsibility links bhi close karein.
+        affected_unit_ids = [
+            unit_id,
+            *child_section_ids
+        ]
+
+        affected_placeholders = ",".join(
+            "?"
+            for affected_id in affected_unit_ids
+        )
+
+        connection.execute(
+            f"""
+            UPDATE post_assignment_units
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE organizational_unit_id
+                  IN ({affected_placeholders})
+              AND is_active = 1
+            """,
+            affected_unit_ids
+        )
+
+    # =================================================
+    # SECTION DEACTIVATION
+    # =================================================
+
+    elif unit_type == "Section":
+
+        affected_employees = connection.execute("""
+            SELECT
+                employee_id,
+                organizational_unit_id
+            FROM employee_location_assignments
+            WHERE section_id = ?
+              AND is_active = 1
+        """, (unit_id,)).fetchall()
+
+        # Purani Section assignment history close karein.
+        connection.execute("""
+            UPDATE employee_location_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE section_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        # Employees same Division mein rahenge,
+        # magar ab unki Section assigned nahi hogi.
+        for employee_location in affected_employees:
+
+            connection.execute("""
+                INSERT INTO employee_location_assignments
+                (
+                    employee_id,
+                    organizational_unit_id,
+                    section_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, NULL, CURRENT_DATE, 1)
+            """, (
+                employee_location["employee_id"],
+                employee_location["organizational_unit_id"]
+            ))
+
+        # Section Head responsibility close karein.
+        connection.execute("""
+            UPDATE section_head_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE section_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        # Purana generic Head/unit responsibility link close karein.
+        connection.execute("""
+            UPDATE post_assignment_units
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE organizational_unit_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+    # =================================================
+    # OFFICE OR LEGACY UNIT DEACTIVATION
+    # =================================================
+
+    else:
+
+        # Office staff Without Division/Office ho jayega.
+        connection.execute("""
+            UPDATE employee_location_assignments
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE organizational_unit_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+        connection.execute("""
+            UPDATE post_assignment_units
+            SET is_active = 0,
+                end_date = COALESCE(
+                    end_date,
+                    CURRENT_DATE
+                )
+            WHERE organizational_unit_id = ?
+              AND is_active = 1
+        """, (unit_id,))
+
+    # Selected unit ko inactive karein.
     connection.execute("""
         UPDATE organizational_units
         SET is_active = 0
@@ -166,6 +776,93 @@ def reactivate_unit(unit_id):
 
     connection = get_db_connection()
 
+    unit = connection.execute("""
+        SELECT
+            id,
+            name,
+            unit_type,
+            parent_id,
+            is_active
+        FROM organizational_units
+        WHERE id = ?
+    """, (unit_id,)).fetchone()
+
+    if unit is None:
+        connection.close()
+        return "Organizational unit not found.", 404
+
+    if unit["is_active"] == 1:
+        connection.close()
+        return redirect("/admin/units")
+
+    unit_type = unit["unit_type"]
+
+    # Section sirf active parent Division ke andar reactivate hogi.
+    if unit_type == "Section":
+
+        parent_division = connection.execute("""
+            SELECT id
+            FROM organizational_units
+            WHERE id = ?
+              AND unit_type = 'Division'
+              AND is_active = 1
+        """, (unit["parent_id"],)).fetchone()
+
+        if parent_division is None:
+            connection.close()
+
+            return (
+                "This Section cannot be reactivated because its "
+                "parent Division is inactive. Reactivate the parent "
+                "Division first.",
+                400
+            )
+
+        comparable_units = connection.execute("""
+            SELECT id, name
+            FROM organizational_units
+            WHERE unit_type = 'Section'
+              AND parent_id = ?
+              AND is_active = 1
+              AND id != ?
+        """, (
+            unit["parent_id"],
+            unit_id
+        )).fetchall()
+
+    else:
+
+        comparable_units = connection.execute("""
+            SELECT id, name
+            FROM organizational_units
+            WHERE unit_type = ?
+              AND is_active = 1
+              AND id != ?
+        """, (
+            unit_type,
+            unit_id
+        )).fetchall()
+
+    normalized_unit_name = clean_name(
+        unit["name"]
+    ).casefold()
+
+    for comparable_unit in comparable_units:
+
+        comparable_name = clean_name(
+            comparable_unit["name"]
+        ).casefold()
+
+        if comparable_name == normalized_unit_name:
+
+            connection.close()
+
+            return (
+                f"Cannot reactivate '{unit['name']}' because an "
+                f"active {unit_type} with the same name already exists.",
+                400
+            )
+
     connection.execute("""
         UPDATE organizational_units
         SET is_active = 1
@@ -176,7 +873,6 @@ def reactivate_unit(unit_id):
     connection.close()
 
     return redirect("/admin/units")
-
 
 # -------------------------------------------------
 # DESIGNATIONS
@@ -269,60 +965,104 @@ def add_designation():
 @app.route("/admin/employees")
 def manage_employees():
 
-    search = request.args.get("search", "").strip()
+    search = clean_name(
+        request.args.get("search", "")
+    )
 
     connection = get_db_connection()
+
+    query = """
+        SELECT
+            employees.id,
+            employees.pin,
+            employees.name,
+            employees.extension_number,
+            employees.is_active,
+
+            designation.name AS designation_name,
+
+            home_unit.name AS unit_name,
+            home_unit.unit_type AS unit_type,
+
+            section.name AS section_name,
+
+            post.name AS post_name
+
+        FROM employees
+
+        LEFT JOIN employee_designation_assignments
+            AS designation_assignment
+
+            ON designation_assignment.employee_id
+               = employees.id
+           AND designation_assignment.is_active = 1
+
+        LEFT JOIN designations AS designation
+            ON designation_assignment.designation_id
+               = designation.id
+
+        LEFT JOIN employee_location_assignments
+            AS location_assignment
+
+            ON location_assignment.employee_id
+               = employees.id
+           AND location_assignment.is_active = 1
+
+        LEFT JOIN organizational_units AS home_unit
+            ON location_assignment.organizational_unit_id
+               = home_unit.id
+
+        LEFT JOIN organizational_units AS section
+            ON location_assignment.section_id
+               = section.id
+
+        LEFT JOIN employee_post_assignments
+            AS post_assignment
+
+            ON post_assignment.employee_id
+               = employees.id
+           AND post_assignment.is_active = 1
+
+        LEFT JOIN posts AS post
+            ON post_assignment.post_id = post.id
+    """
+
+    parameters = []
 
     if search:
 
         search_value = f"%{search}%"
 
-        employees = connection.execute("""
-            SELECT
-                employees.id,
-                employees.pin,
-                employees.name,
-                employees.extension_number,
-                employees.is_active,
-                designations.name AS designation_name,
-                organizational_units.name AS unit_name
-            FROM employees
-            JOIN designations
-                ON employees.designation_id = designations.id
-            JOIN organizational_units
-                ON employees.organizational_unit_id = organizational_units.id
-            WHERE employees.name LIKE ?
-               OR employees.pin LIKE ?
-               OR designations.name LIKE ?
-               OR organizational_units.name LIKE ?
+        query += """
+            WHERE employees.pin LIKE ?
+               OR employees.name LIKE ?
+               OR designation.name LIKE ?
+               OR home_unit.name LIKE ?
+               OR section.name LIKE ?
+               OR post.name LIKE ?
                OR employees.extension_number LIKE ?
-            ORDER BY employees.name
-        """, (
+        """
+
+        parameters = [
+            search_value,
+            search_value,
             search_value,
             search_value,
             search_value,
             search_value,
             search_value
-        )).fetchall()
+        ]
 
-    else:
+    query += """
+        ORDER BY
+            employees.is_active DESC,
+            employees.name
+    """
 
-        employees = connection.execute("""
-            SELECT
-                employees.id,
-                employees.pin,
-                employees.name,
-                employees.extension_number,
-                employees.is_active,
-                designations.name AS designation_name,
-                organizational_units.name AS unit_name
-            FROM employees
-            JOIN designations
-                ON employees.designation_id = designations.id
-            JOIN organizational_units
-                ON employees.organizational_unit_id = organizational_units.id
-            ORDER BY employees.name
-        """).fetchall()
+    employees = connection.execute(
+        query,
+        parameters
+    ).fetchall()
 
     connection.close()
 
@@ -332,7 +1072,6 @@ def manage_employees():
         search=search
     )
 
-
 # Add new employee
 @app.route("/admin/employees/add", methods=["GET", "POST"])
 def add_employee():
@@ -341,15 +1080,143 @@ def add_employee():
 
     if request.method == "POST":
 
-        pin = request.form["pin"].strip()
-        name = request.form["name"].strip()
-        designation_id = request.form["designation_id"]
-        organizational_unit_id = request.form["organizational_unit_id"]
-        extension_number = request.form.get("extension_number", "").strip()
+        pin = request.form.get("pin", "").strip()
+        name = clean_name(
+            request.form.get("name", "")
+        )
+
+        designation_id_value = request.form.get(
+            "designation_id",
+            ""
+        ).strip()
+
+        organizational_unit_id_value = request.form.get(
+            "organizational_unit_id",
+            ""
+        ).strip()
+
+        section_id_value = request.form.get(
+            "section_id",
+            ""
+        ).strip()
+
+        extension_number = request.form.get(
+            "extension_number",
+            ""
+        ).strip()
+
+        # PIN sirf digits par mushtamil hoga.
+        # Leading zero preserve rahega kyunki PIN TEXT hai.
+        if not pin or not pin.isdigit():
+            connection.close()
+            return "PIN must contain digits only.", 400
+
+        if not name:
+            connection.close()
+            return "Employee name is required.", 400
+
+        # Duplicate PIN active ya inactive kisi employee ka nahi ho sakta.
+        existing_pin = connection.execute("""
+            SELECT id
+            FROM employees
+            WHERE pin = ?
+        """, (pin,)).fetchone()
+
+        if existing_pin:
+            connection.close()
+            return "An employee with this PIN already exists.", 400
+
+        if not designation_id_value.isdigit():
+            connection.close()
+            return "Please select a valid designation.", 400
+
+        designation_id = int(designation_id_value)
+
+        designation = connection.execute("""
+            SELECT id
+            FROM designations
+            WHERE id = ?
+              AND is_active = 1
+        """, (designation_id,)).fetchone()
+
+        if designation is None:
+            connection.close()
+            return "The selected designation is not active.", 400
+
+        if not organizational_unit_id_value.isdigit():
+            connection.close()
+            return "Please select an active Division or Office.", 400
+
+        organizational_unit_id = int(
+            organizational_unit_id_value
+        )
+
+        organizational_unit = connection.execute("""
+            SELECT
+                id,
+                name,
+                unit_type
+            FROM organizational_units
+            WHERE id = ?
+              AND unit_type IN (
+                  'Division',
+                  'Office'
+              )
+              AND is_active = 1
+        """, (organizational_unit_id,)).fetchone()
+
+        if organizational_unit is None:
+            connection.close()
+            return "Please select an active Division or Office.", 400
+
+        section_id = None
+
+        if section_id_value:
+
+            if not section_id_value.isdigit():
+                connection.close()
+                return "Please select a valid Section.", 400
+
+            section_id = int(section_id_value)
+
+            section = connection.execute("""
+                SELECT id
+                FROM organizational_units
+                WHERE id = ?
+                  AND unit_type = 'Section'
+                  AND parent_id = ?
+                  AND is_active = 1
+            """, (
+                section_id,
+                organizational_unit_id
+            )).fetchone()
+
+            if section is None:
+                connection.close()
+
+                return (
+                    "The selected Section does not belong to the "
+                    "selected Division.",
+                    400
+                )
+
+        # Office employee ki Section nahi ho sakti.
+        if (
+            organizational_unit["unit_type"] == "Office"
+            and section_id is not None
+        ):
+            connection.close()
+
+            return (
+                "An Office employee cannot be assigned to a Section.",
+                400
+            )
 
         try:
 
-            connection.execute("""
+            # Legacy current columns abhi compatibility ke liye
+            # maintain kiye ja rahe hain.
+            cursor = connection.execute("""
                 INSERT INTO employees
                 (
                     pin,
@@ -367,6 +1234,40 @@ def add_employee():
                 extension_number
             ))
 
+            employee_id = cursor.lastrowid
+
+            # Current designation ko history table mein save karein.
+            connection.execute("""
+                INSERT INTO employee_designation_assignments
+                (
+                    employee_id,
+                    designation_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, CURRENT_DATE, 1)
+            """, (
+                employee_id,
+                designation_id
+            ))
+
+            # Current Division/Office aur optional Section save karein.
+            connection.execute("""
+                INSERT INTO employee_location_assignments
+                (
+                    employee_id,
+                    organizational_unit_id,
+                    section_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, ?, CURRENT_DATE, 1)
+            """, (
+                employee_id,
+                organizational_unit_id,
+                section_id
+            ))
+
             connection.commit()
             connection.close()
 
@@ -374,10 +1275,14 @@ def add_employee():
 
         except sqlite3.IntegrityError:
 
+            connection.rollback()
             connection.close()
 
-            return "An employee with this PIN already exists.", 400
-
+            return (
+                "Employee could not be created because one of the "
+                "selected values conflicts with an existing record.",
+                400
+            )
 
     designations = connection.execute("""
         SELECT id, name
@@ -386,23 +1291,53 @@ def add_employee():
         ORDER BY name
     """).fetchall()
 
-
     units = connection.execute("""
-        SELECT id, name, unit_type
+        SELECT
+            id,
+            name,
+            unit_type
         FROM organizational_units
-        WHERE is_active = 1
-          AND unit_type != 'Authority'
-        ORDER BY name
+        WHERE unit_type IN (
+            'Division',
+            'Office'
+        )
+          AND is_active = 1
+        ORDER BY
+            CASE unit_type
+                WHEN 'Division' THEN 1
+                WHEN 'Office' THEN 2
+            END,
+            name
     """).fetchall()
 
+    sections = connection.execute("""
+        SELECT
+            section.id,
+            section.name,
+            section.parent_id
+        FROM organizational_units AS section
+
+        JOIN organizational_units AS parent_division
+            ON section.parent_id = parent_division.id
+
+        WHERE section.unit_type = 'Section'
+          AND section.is_active = 1
+          AND parent_division.unit_type = 'Division'
+          AND parent_division.is_active = 1
+
+        ORDER BY section.name
+    """).fetchall()
 
     connection.close()
 
     return render_template(
         "add_employee.html",
         designations=designations,
-        units=units
+        units=units,
+        sections=sections
     )
+
+
 # Delete designation only if it is not assigned to any employee
 @app.route("/admin/designations/delete/<int:designation_id>", methods=["POST"])
 def delete_designation(designation_id):
@@ -551,66 +1486,417 @@ def dvd_request_details(request_id):
         dvd_request=dvd_request
     )
 
-@app.route("/admin/employees/edit/<int:employee_id>", methods=["GET", "POST"])
+@app.route(
+    "/admin/employees/edit/<int:employee_id>",
+    methods=["GET", "POST"]
+)
 def edit_employee(employee_id):
 
     connection = get_db_connection()
 
     employee = connection.execute("""
-        SELECT *
+        SELECT
+            employees.id,
+            employees.pin,
+            employees.name,
+            employees.extension_number,
+            employees.is_active,
+
+            designation_assignment.id
+                AS designation_assignment_id,
+
+            COALESCE(
+                designation_assignment.designation_id,
+                employees.designation_id
+            ) AS current_designation_id,
+
+            location_assignment.id
+                AS location_assignment_id,
+
+            location_assignment.organizational_unit_id
+                AS current_unit_id,
+
+            location_assignment.section_id
+                AS current_section_id
+
         FROM employees
-        WHERE id = ?
+
+        LEFT JOIN employee_designation_assignments
+            AS designation_assignment
+
+            ON designation_assignment.employee_id
+               = employees.id
+           AND designation_assignment.is_active = 1
+
+        LEFT JOIN employee_location_assignments
+            AS location_assignment
+
+            ON location_assignment.employee_id
+               = employees.id
+           AND location_assignment.is_active = 1
+
+        WHERE employees.id = ?
     """, (employee_id,)).fetchone()
 
     if employee is None:
         connection.close()
-        return "Employee not found", 404
-
+        return "Employee not found.", 404
 
     if request.method == "POST":
 
-        name = request.form["name"].strip()
-        designation_id = request.form["designation_id"]
-        organizational_unit_id = request.form["organizational_unit_id"]
-        extension_number = request.form.get("extension_number", "").strip()
+        pin = request.form.get("pin", "").strip()
 
-        connection.execute("""
-            UPDATE employees
-            SET name = ?,
-                designation_id = ?,
-                organizational_unit_id = ?,
-                extension_number = ?
-            WHERE id = ?
+        name = clean_name(
+            request.form.get("name", "")
+        )
+
+        designation_id_value = request.form.get(
+            "designation_id",
+            ""
+        ).strip()
+
+        organizational_unit_id_value = request.form.get(
+            "organizational_unit_id",
+            ""
+        ).strip()
+
+        section_id_value = request.form.get(
+            "section_id",
+            ""
+        ).strip()
+
+        extension_number = request.form.get(
+            "extension_number",
+            ""
+        ).strip()
+
+        if not pin or not pin.isdigit():
+            connection.close()
+            return "PIN must contain digits only.", 400
+
+        if not name:
+            connection.close()
+            return "Employee name is required.", 400
+
+        # Same employee ko exclude karke duplicate PIN check karein.
+        duplicate_pin = connection.execute("""
+            SELECT id
+            FROM employees
+            WHERE pin = ?
+              AND id != ?
         """, (
-            name,
-            designation_id,
-            organizational_unit_id,
-            extension_number,
+            pin,
             employee_id
-        ))
+        )).fetchone()
 
-        connection.commit()
-        connection.close()
+        if duplicate_pin:
+            connection.close()
 
-        return redirect("/admin/employees")
+            return (
+                "Another employee already has this PIN. "
+                "Change that employee's PIN first.",
+                400
+            )
 
+        if not designation_id_value.isdigit():
+            connection.close()
+            return "Please select a valid designation.", 400
+
+        designation_id = int(designation_id_value)
+
+        designation = connection.execute("""
+            SELECT id
+            FROM designations
+            WHERE id = ?
+              AND (
+                    is_active = 1
+                    OR id = ?
+              )
+        """, (
+            designation_id,
+            employee["current_designation_id"]
+        )).fetchone()
+
+        if designation is None:
+            connection.close()
+            return "The selected designation is not available.", 400
+
+        organizational_unit_id = None
+        section_id = None
+        organizational_unit = None
+
+        # Blank unit ka matlab employee Without Division rahega.
+        if organizational_unit_id_value:
+
+            if not organizational_unit_id_value.isdigit():
+                connection.close()
+                return "Please select a valid Division or Office.", 400
+
+            organizational_unit_id = int(
+                organizational_unit_id_value
+            )
+
+            organizational_unit = connection.execute("""
+                SELECT
+                    id,
+                    name,
+                    unit_type
+                FROM organizational_units
+                WHERE id = ?
+                  AND unit_type IN (
+                      'Division',
+                      'Office'
+                  )
+                  AND is_active = 1
+            """, (organizational_unit_id,)).fetchone()
+
+            if organizational_unit is None:
+                connection.close()
+
+                return (
+                    "The selected Division or Office is not active.",
+                    400
+                )
+
+        if section_id_value:
+
+            if organizational_unit_id is None:
+                connection.close()
+
+                return (
+                    "A Section cannot be selected without a Division.",
+                    400
+                )
+
+            if not section_id_value.isdigit():
+                connection.close()
+                return "Please select a valid Section.", 400
+
+            section_id = int(section_id_value)
+
+            section = connection.execute("""
+                SELECT id
+                FROM organizational_units
+                WHERE id = ?
+                  AND unit_type = 'Section'
+                  AND parent_id = ?
+                  AND is_active = 1
+            """, (
+                section_id,
+                organizational_unit_id
+            )).fetchone()
+
+            if section is None:
+                connection.close()
+
+                return (
+                    "The selected Section does not belong to the "
+                    "selected Division.",
+                    400
+                )
+
+        if (
+            organizational_unit is not None
+            and organizational_unit["unit_type"] == "Office"
+            and section_id is not None
+        ):
+            connection.close()
+
+            return (
+                "An Office employee cannot be assigned to a Section.",
+                400
+            )
+
+        try:
+
+            # =================================================
+            # DESIGNATION CHANGE
+            # =================================================
+
+            current_designation_id = (
+                employee["current_designation_id"]
+            )
+
+            if (
+                employee["designation_assignment_id"] is None
+                or designation_id != current_designation_id
+            ):
+
+                connection.execute("""
+                    UPDATE employee_designation_assignments
+                    SET is_active = 0,
+                        end_date = COALESCE(
+                            end_date,
+                            CURRENT_DATE
+                        )
+                    WHERE employee_id = ?
+                      AND is_active = 1
+                """, (employee_id,))
+
+                connection.execute("""
+                    INSERT INTO employee_designation_assignments
+                    (
+                        employee_id,
+                        designation_id,
+                        start_date,
+                        is_active
+                    )
+                    VALUES (?, ?, CURRENT_DATE, 1)
+                """, (
+                    employee_id,
+                    designation_id
+                ))
+
+            # =================================================
+            # LOCATION OR SECTION CHANGE
+            # =================================================
+
+            current_unit_id = employee["current_unit_id"]
+            current_section_id = employee["current_section_id"]
+
+            location_changed = (
+                organizational_unit_id != current_unit_id
+                or section_id != current_section_id
+            )
+
+            if location_changed:
+
+                # Old Division/Office/Section assignment close karein.
+                connection.execute("""
+                    UPDATE employee_location_assignments
+                    SET is_active = 0,
+                        end_date = COALESCE(
+                            end_date,
+                            CURRENT_DATE
+                        )
+                    WHERE employee_id = ?
+                      AND is_active = 1
+                """, (employee_id,))
+
+                # Unit selected ho to new location assignment create karein.
+                if organizational_unit_id is not None:
+
+                    connection.execute("""
+                        INSERT INTO employee_location_assignments
+                        (
+                            employee_id,
+                            organizational_unit_id,
+                            section_id,
+                            start_date,
+                            is_active
+                        )
+                        VALUES (?, ?, ?, CURRENT_DATE, 1)
+                    """, (
+                        employee_id,
+                        organizational_unit_id,
+                        section_id
+                    ))
+
+            # =================================================
+            # CURRENT EMPLOYEE MASTER DATA
+            # =================================================
+
+            if organizational_unit_id is not None:
+
+                connection.execute("""
+                    UPDATE employees
+                    SET pin = ?,
+                        name = ?,
+                        designation_id = ?,
+                        organizational_unit_id = ?,
+                        extension_number = ?
+                    WHERE id = ?
+                """, (
+                    pin,
+                    name,
+                    designation_id,
+                    organizational_unit_id,
+                    extension_number,
+                    employee_id
+                ))
+
+            else:
+
+                # Legacy organizational_unit_id NOT NULL hai.
+                # Without Division ka real status active location
+                # assignment na hone se determine hoga.
+                connection.execute("""
+                    UPDATE employees
+                    SET pin = ?,
+                        name = ?,
+                        designation_id = ?,
+                        extension_number = ?
+                    WHERE id = ?
+                """, (
+                    pin,
+                    name,
+                    designation_id,
+                    extension_number,
+                    employee_id
+                ))
+
+            connection.commit()
+            connection.close()
+
+            return redirect("/admin/employees")
+
+        except sqlite3.IntegrityError:
+
+            connection.rollback()
+            connection.close()
+
+            return (
+                "Employee could not be updated because one of the "
+                "new values conflicts with an existing record.",
+                400
+            )
 
     designations = connection.execute("""
-        SELECT id, name
+        SELECT id, name, is_active
         FROM designations
         WHERE is_active = 1
+           OR id = ?
         ORDER BY name
-    """).fetchall()
-
+    """, (
+        employee["current_designation_id"],
+    )).fetchall()
 
     units = connection.execute("""
-        SELECT id, name
+        SELECT
+            id,
+            name,
+            unit_type
         FROM organizational_units
-        WHERE is_active = 1
-          AND unit_type != 'Authority'
-        ORDER BY name
+        WHERE unit_type IN (
+            'Division',
+            'Office'
+        )
+          AND is_active = 1
+        ORDER BY
+            CASE unit_type
+                WHEN 'Division' THEN 1
+                WHEN 'Office' THEN 2
+            END,
+            name
     """).fetchall()
 
+    sections = connection.execute("""
+        SELECT
+            section.id,
+            section.name,
+            section.parent_id
+        FROM organizational_units AS section
+
+        JOIN organizational_units AS parent_division
+            ON section.parent_id = parent_division.id
+
+        WHERE section.unit_type = 'Section'
+          AND section.is_active = 1
+          AND parent_division.unit_type = 'Division'
+          AND parent_division.is_active = 1
+
+        ORDER BY section.name
+    """).fetchall()
 
     connection.close()
 
@@ -618,9 +1904,9 @@ def edit_employee(employee_id):
         "edit_employee.html",
         employee=employee,
         designations=designations,
-        units=units
+        units=units,
+        sections=sections
     )
-
 
 # =================================================
 # POSTS / CHARGES
