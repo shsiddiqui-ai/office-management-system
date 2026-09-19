@@ -441,6 +441,391 @@ for legacy_post_name in legacy_post_names:
                 SET is_active = 0
                 WHERE id = ?
             """, (legacy_post_id,))
+
+# =================================================
+# ORGANIZATION STRUCTURE HISTORY
+# =================================================
+
+# Har Division, Office aur Section ka naam-history record.
+# Rename hone par current record close hoga aur naya record create hoga.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS organizational_unit_name_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    organizational_unit_id INTEGER NOT NULL,
+
+    name TEXT NOT NULL,
+
+    normalized_name TEXT NOT NULL,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    end_date TEXT,
+
+    is_current INTEGER NOT NULL DEFAULT 1
+        CHECK (is_current IN (0, 1)),
+
+    FOREIGN KEY (organizational_unit_id)
+        REFERENCES organizational_units(id)
+)
+""")
+
+
+# Ek unit ka sirf ek current name-history record ho sakta hai.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_current_name_per_unit
+ON organizational_unit_name_history (
+    organizational_unit_id
+)
+WHERE is_current = 1
+""")
+
+
+# Existing units ke current names ko initial history mein copy karein.
+connection.execute("""
+INSERT INTO organizational_unit_name_history
+(
+    organizational_unit_id,
+    name,
+    normalized_name,
+    start_date,
+    is_current
+)
+SELECT
+    organizational_units.id,
+    organizational_units.name,
+    LOWER(TRIM(organizational_units.name)),
+    CURRENT_TIMESTAMP,
+    1
+FROM organizational_units
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM organizational_unit_name_history
+    WHERE organizational_unit_name_history.organizational_unit_id
+          = organizational_units.id
+      AND organizational_unit_name_history.is_current = 1
+)
+""")
+
+
+# =================================================
+# EMPLOYEE DESIGNATION HISTORY
+# =================================================
+
+connection.execute("""
+CREATE TABLE IF NOT EXISTS employee_designation_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    employee_id INTEGER NOT NULL,
+
+    designation_id INTEGER NOT NULL,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(id),
+
+    FOREIGN KEY (designation_id)
+        REFERENCES designations(id)
+)
+""")
+
+
+# Ek employee ki sirf ek active designation.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_designation_per_employee
+ON employee_designation_assignments (
+    employee_id
+)
+WHERE is_active = 1
+""")
+
+
+# Existing employee designations ko history table mein migrate karein.
+connection.execute("""
+INSERT INTO employee_designation_assignments
+(
+    employee_id,
+    designation_id,
+    start_date,
+    is_active
+)
+SELECT
+    employees.id,
+    employees.designation_id,
+    CURRENT_DATE,
+    1
+FROM employees
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM employee_designation_assignments
+    WHERE employee_designation_assignments.employee_id = employees.id
+      AND employee_designation_assignments.is_active = 1
+)
+""")
+
+
+# =================================================
+# EMPLOYEE LOCATION HISTORY
+# =================================================
+
+# organizational_unit_id mein employee ki Division ya Office hogi.
+# section_id optional hai.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS employee_location_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    employee_id INTEGER NOT NULL,
+
+    organizational_unit_id INTEGER,
+
+    section_id INTEGER,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    CHECK (
+        organizational_unit_id IS NOT NULL
+        OR section_id IS NULL
+    ),
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(id),
+
+    FOREIGN KEY (organizational_unit_id)
+        REFERENCES organizational_units(id),
+
+    FOREIGN KEY (section_id)
+        REFERENCES organizational_units(id)
+)
+""")
+
+
+# Ek employee ki maximum ek active location.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_location_per_employee
+ON employee_location_assignments (
+    employee_id
+)
+WHERE is_active = 1
+""")
+
+
+# Existing employee units ko initial location history mein copy karein.
+# Existing employees abhi Section ke baghair migrate honge.
+connection.execute("""
+INSERT INTO employee_location_assignments
+(
+    employee_id,
+    organizational_unit_id,
+    section_id,
+    start_date,
+    is_active
+)
+SELECT
+    employees.id,
+    employees.organizational_unit_id,
+    NULL,
+    CURRENT_DATE,
+    1
+FROM employees
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM employee_location_assignments
+    WHERE employee_location_assignments.employee_id = employees.id
+      AND employee_location_assignments.is_active = 1
+)
+""")
+
+
+# =================================================
+# DIVISION REPORTING AUTHORITY HISTORY
+# =================================================
+
+# Division dynamically SD, PM ya DPM post ko report karegi.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS division_reporting_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    division_id INTEGER NOT NULL,
+
+    authority_post_id INTEGER NOT NULL,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    FOREIGN KEY (division_id)
+        REFERENCES organizational_units(id),
+
+    FOREIGN KEY (authority_post_id)
+        REFERENCES posts(id)
+)
+""")
+
+
+# Ek Division ki sirf ek current reporting authority.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_authority_per_division
+ON division_reporting_assignments (
+    division_id
+)
+WHERE is_active = 1
+""")
+
+
+# =================================================
+# DIVISION MANAGER / ACTING MANAGER HISTORY
+# =================================================
+
+connection.execute("""
+CREATE TABLE IF NOT EXISTS division_management_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    employee_id INTEGER NOT NULL,
+
+    division_id INTEGER NOT NULL,
+
+    responsibility_type TEXT NOT NULL
+        CHECK (
+            responsibility_type IN (
+                'Manager',
+                'Acting Manager'
+            )
+        ),
+
+    is_primary INTEGER NOT NULL DEFAULT 0
+        CHECK (is_primary IN (0, 1)),
+
+    post_assignment_id INTEGER,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(id),
+
+    FOREIGN KEY (division_id)
+        REFERENCES organizational_units(id),
+
+    FOREIGN KEY (post_assignment_id)
+        REFERENCES employee_post_assignments(id)
+)
+""")
+
+
+# Ek Division ka sirf ek active Manager ya Acting Manager.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_manager_per_division
+ON division_management_assignments (
+    division_id
+)
+WHERE is_active = 1
+""")
+
+
+# Ek employee sirf ek Division ka primary Manager ho sakta hai.
+# Additional Divisions mein Acting Manager responsibility allowed hogi.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_primary_manager_division_per_employee
+ON division_management_assignments (
+    employee_id
+)
+WHERE is_active = 1
+  AND responsibility_type = 'Manager'
+  AND is_primary = 1
+""")
+
+
+# Same employee ko same Division ki duplicate active responsibility na mile.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_no_duplicate_active_division_management
+ON division_management_assignments (
+    employee_id,
+    division_id
+)
+WHERE is_active = 1
+""")
+
+
+# =================================================
+# SECTION HEAD HISTORY
+# =================================================
+
+connection.execute("""
+CREATE TABLE IF NOT EXISTS section_head_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    employee_id INTEGER NOT NULL,
+
+    section_id INTEGER NOT NULL,
+
+    post_assignment_id INTEGER,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_DATE,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(id),
+
+    FOREIGN KEY (section_id)
+        REFERENCES organizational_units(id),
+
+    FOREIGN KEY (post_assignment_id)
+        REFERENCES employee_post_assignments(id)
+)
+""")
+
+
+# Ek Section ka sirf ek current Head.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_head_per_section
+ON section_head_assignments (
+    section_id
+)
+WHERE is_active = 1
+""")
+
+
+# Same employee ko same Section ka duplicate active Head na banaya ja sake.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_no_duplicate_active_section_head
+ON section_head_assignments (
+    employee_id,
+    section_id
+)
+WHERE is_active = 1
+""")
+
 connection.commit()            
 connection.close()
 
