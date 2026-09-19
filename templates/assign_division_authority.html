@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Division Reporting Authority</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 24px 5%;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #d1d5db;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            margin: 35px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .card {
+            margin-bottom: 22px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 22px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .current-box {
+            margin-bottom: 24px;
+            padding: 18px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 7px;
+        }
+
+        .current-label {
+            margin-bottom: 6px;
+            color: #1e40af;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .current-value {
+            color: #1e3a8a;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .not-assigned {
+            color: #b45309;
+        }
+
+        .inactive-warning {
+            margin-bottom: 22px;
+            padding: 15px;
+            background-color: #fee2e2;
+            border-left: 4px solid #dc2626;
+            border-radius: 7px;
+            color: #991b1b;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            background-color: white;
+            font-size: 15px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .help-text {
+            margin-top: 8px;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 7px;
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .cancel {
+            color: #374151;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .cancel:hover {
+            text-decoration: underline;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 13px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .active {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .historical {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .empty {
+            padding: 30px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1>Division Reporting Authority</h1>
+
+        <p>
+            Assign the authority post that controls this Division.
+        </p>
+
+    </div>
+
+
+    <div class="container">
+
+        <a
+            href="/admin/units"
+            class="back-link"
+        >
+            ← Back to Organizational Units
+        </a>
+
+
+        <div class="card">
+
+            <h2>
+                {{ division["name"] }}
+            </h2>
+
+            <p class="description">
+                Select whether this Division reports directly to the
+                Senior Director, Plant Manager or Deputy Plant Manager.
+            </p>
+
+
+            <div class="current-box">
+
+                <div class="current-label">
+                    Current Reporting Authority
+                </div>
+
+                <div class="current-value">
+
+                    {% if current_assignment %}
+
+                        {{ current_assignment["authority_name"] }}
+
+                    {% else %}
+
+                        <span class="not-assigned">
+                            Not Assigned
+                        </span>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+
+            {% if division["is_active"] == 0 %}
+
+                <div class="inactive-warning">
+
+                    This Division is inactive.
+
+                    Reactivate the Division before assigning a reporting
+                    authority.
+
+                </div>
+
+            {% endif %}
+
+
+            <form method="POST">
+
+                <label for="authority_post_id">
+                    Reporting Authority
+                </label>
+
+                <select
+                    id="authority_post_id"
+                    name="authority_post_id"
+                    required
+                    {% if division["is_active"] == 0 %}
+                        disabled
+                    {% endif %}
+                >
+
+                    <option value="">
+                        Select Reporting Authority
+                    </option>
+
+                    {% for authority in authority_posts %}
+
+                        <option
+                            value="{{ authority['id'] }}"
+                            {% if
+                                current_assignment
+                                and
+                                current_assignment["authority_post_id"]
+                                == authority["id"]
+                            %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ authority["name"] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+
+                <div class="help-text">
+
+                    This relationship is independent of the person currently
+                    holding the selected authority post.
+
+                </div>
+
+
+                <div class="buttons">
+
+                    <button
+                        type="submit"
+                        class="btn"
+                        {% if division["is_active"] == 0 %}
+                            disabled
+                        {% endif %}
+                    >
+                        Save Reporting Authority
+                    </button>
+
+                    <a
+                        href="/admin/units"
+                        class="cancel"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Reporting History</h2>
+
+            <p class="description">
+                Previous authority changes remain available for audit.
+            </p>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Authority</th>
+
+                            <th>Start Date</th>
+
+                            <th>End Date</th>
+
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% if reporting_history %}
+
+                            {% for history in reporting_history %}
+
+                                <tr>
+
+                                    <td>
+                                        {{ history["authority_name"] }}
+                                    </td>
+
+                                    <td>
+                                        {{ history["start_date"] }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if history["end_date"] %}
+
+                                            {{ history["end_date"] }}
+
+                                        {% else %}
+
+                                            —
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+
+                                        {% if history["is_active"] == 1 %}
+
+                                            <span class="status active">
+                                                Current
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="status historical">
+                                                Historical
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
+
+                            <tr>
+
+                                <td
+                                    colspan="4"
+                                    class="empty"
+                                >
+                                    No reporting authority has been assigned yet.
+                                </td>
+
+                            </tr>
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

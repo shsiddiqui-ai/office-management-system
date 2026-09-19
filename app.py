@@ -874,6 +874,194 @@ def reactivate_unit(unit_id):
 
     return redirect("/admin/units")
 
+
+
+@app.route(
+    "/admin/divisions/<int:division_id>/reporting-authority",
+    methods=["GET", "POST"]
+)
+def manage_division_reporting_authority(division_id):
+
+    connection = get_db_connection()
+
+    division = connection.execute("""
+        SELECT
+            id,
+            name,
+            is_active
+        FROM organizational_units
+        WHERE id = ?
+          AND unit_type = 'Division'
+    """, (division_id,)).fetchone()
+
+    if division is None:
+        connection.close()
+        return "Division not found.", 404
+
+    authority_posts = connection.execute("""
+        SELECT
+            id,
+            name
+        FROM posts
+        WHERE name IN (
+            'Senior Director',
+            'Plant Manager',
+            'Deputy Plant Manager'
+        )
+          AND is_active = 1
+        ORDER BY
+            CASE name
+                WHEN 'Senior Director' THEN 1
+                WHEN 'Plant Manager' THEN 2
+                WHEN 'Deputy Plant Manager' THEN 3
+            END
+    """).fetchall()
+
+    current_assignment = connection.execute("""
+        SELECT
+            division_reporting_assignments.id,
+            division_reporting_assignments.authority_post_id,
+            posts.name AS authority_name,
+            division_reporting_assignments.start_date
+        FROM division_reporting_assignments
+
+        JOIN posts
+            ON division_reporting_assignments.authority_post_id
+               = posts.id
+
+        WHERE division_reporting_assignments.division_id = ?
+          AND division_reporting_assignments.is_active = 1
+    """, (division_id,)).fetchone()
+
+    if request.method == "POST":
+
+        authority_post_id_value = request.form.get(
+            "authority_post_id",
+            ""
+        ).strip()
+
+        if division["is_active"] == 0:
+            connection.close()
+
+            return (
+                "Reporting authority cannot be assigned to an "
+                "inactive Division.",
+                400
+            )
+
+        if not authority_post_id_value.isdigit():
+            connection.close()
+
+            return (
+                "Please select Senior Director, Plant Manager "
+                "or Deputy Plant Manager.",
+                400
+            )
+
+        authority_post_id = int(
+            authority_post_id_value
+        )
+
+        selected_authority = connection.execute("""
+            SELECT
+                id,
+                name
+            FROM posts
+            WHERE id = ?
+              AND name IN (
+                  'Senior Director',
+                  'Plant Manager',
+                  'Deputy Plant Manager'
+              )
+              AND is_active = 1
+        """, (authority_post_id,)).fetchone()
+
+        if selected_authority is None:
+            connection.close()
+            return "The selected reporting authority is invalid.", 400
+
+        # Same authority dobara select ho to duplicate history na banayein.
+        if (
+            current_assignment is not None
+            and current_assignment["authority_post_id"]
+                == authority_post_id
+        ):
+            connection.close()
+            return redirect("/admin/units")
+
+        try:
+
+            # Purani current reporting relationship close karein.
+            connection.execute("""
+                UPDATE division_reporting_assignments
+                SET is_active = 0,
+                    end_date = COALESCE(
+                        end_date,
+                        CURRENT_DATE
+                    )
+                WHERE division_id = ?
+                  AND is_active = 1
+            """, (division_id,))
+
+            # New reporting authority assign karein.
+            connection.execute("""
+                INSERT INTO division_reporting_assignments
+                (
+                    division_id,
+                    authority_post_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, CURRENT_DATE, 1)
+            """, (
+                division_id,
+                authority_post_id
+            ))
+
+            connection.commit()
+            connection.close()
+
+            return redirect("/admin/units")
+
+        except sqlite3.IntegrityError:
+
+            connection.rollback()
+            connection.close()
+
+            return (
+                "Reporting authority could not be updated because "
+                "this Division already has an active authority.",
+                400
+            )
+
+    reporting_history = connection.execute("""
+        SELECT
+            posts.name AS authority_name,
+            division_reporting_assignments.start_date,
+            division_reporting_assignments.end_date,
+            division_reporting_assignments.is_active
+
+        FROM division_reporting_assignments
+
+        JOIN posts
+            ON division_reporting_assignments.authority_post_id
+               = posts.id
+
+        WHERE division_reporting_assignments.division_id = ?
+
+        ORDER BY division_reporting_assignments.id DESC
+    """, (division_id,)).fetchall()
+
+    connection.close()
+
+    return render_template(
+        "assign_division_authority.html",
+        division=division,
+        authority_posts=authority_posts,
+        current_assignment=current_assignment,
+        reporting_history=reporting_history
+    )
+
 # -------------------------------------------------
 # DESIGNATIONS
 # -------------------------------------------------
