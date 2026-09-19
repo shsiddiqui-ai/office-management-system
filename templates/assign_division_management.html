@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Division Manager / Acting Manager</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            padding: 24px 5%;
+            background-color: #1f2937;
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .header p {
+            margin: 8px 0 0;
+            color: #d1d5db;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 950px;
+            margin: 35px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .card {
+            margin-bottom: 22px;
+            padding: 30px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            margin-top: 0;
+            margin-bottom: 22px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        .current-box {
+            margin-bottom: 24px;
+            padding: 18px;
+            background-color: #eff6ff;
+            border-left: 4px solid #2563eb;
+            border-radius: 7px;
+        }
+
+        .current-label {
+            margin-bottom: 7px;
+            color: #1e40af;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .current-value {
+            color: #1e3a8a;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .current-detail {
+            margin-top: 6px;
+            color: #4b5563;
+            font-size: 14px;
+        }
+
+        .not-assigned {
+            color: #b45309;
+        }
+
+        .warning {
+            margin-bottom: 22px;
+            padding: 15px;
+            background-color: #fff7ed;
+            border-left: 4px solid #f97316;
+            border-radius: 7px;
+            color: #9a3412;
+            line-height: 1.5;
+        }
+
+        .inactive-warning {
+            background-color: #fee2e2;
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            background-color: white;
+            font-size: 15px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .help-text {
+            margin-top: 8px;
+            color: #6b7280;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .rule-box {
+            margin-bottom: 22px;
+            padding: 16px;
+            background-color: #f5f3ff;
+            border-left: 4px solid #7c3aed;
+            border-radius: 7px;
+            color: #5b21b6;
+            line-height: 1.6;
+        }
+
+        .buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 7px;
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .cancel {
+            color: #374151;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .cancel:hover {
+            text-decoration: underline;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 13px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .active {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+
+        .historical {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+
+        .manager-badge {
+            background-color: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .acting-badge {
+            background-color: #f3e8ff;
+            color: #7e22ce;
+        }
+
+        .empty {
+            padding: 30px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1>Division Manager / Acting Manager</h1>
+
+        <p>
+            Assign the employee currently responsible for this Division.
+        </p>
+
+    </div>
+
+
+    <div class="container">
+
+        <a
+            href="/admin/units"
+            class="back-link"
+        >
+            ← Back to Organizational Units
+        </a>
+
+
+        <div class="card">
+
+            <h2>
+                {{ division["name"] }}
+            </h2>
+
+            <p class="description">
+                Select the current Manager or Acting Manager responsible
+                for this Division.
+            </p>
+
+
+            <div class="current-box">
+
+                <div class="current-label">
+                    Current Division Incharge
+                </div>
+
+                {% if current_management %}
+
+                    <div class="current-value">
+                        {{ current_management["employee_name"] }}
+                    </div>
+
+                    <div class="current-detail">
+
+                        PIN:
+                        {{ current_management["pin"] }}
+
+                        &nbsp; | &nbsp;
+
+                        Responsibility:
+                        {{ current_management["responsibility_type"] }}
+
+                        &nbsp; | &nbsp;
+
+                        Active Post:
+                        {{ current_management["active_post"] or "Not Available" }}
+
+                    </div>
+
+                {% else %}
+
+                    <div class="current-value not-assigned">
+                        Manager Not Assigned
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+
+            <div class="rule-box">
+
+                <strong>Rules:</strong>
+
+                One employee can be the primary Manager of only one
+                Division. A Manager may additionally supervise other
+                Divisions as Acting Manager.
+
+            </div>
+
+
+            {% if division["is_active"] == 0 %}
+
+                <div class="warning inactive-warning">
+
+                    This Division is inactive. Reactivate it before
+                    assigning a Manager or Acting Manager.
+
+                </div>
+
+            {% endif %}
+
+
+            {% if not eligible_employees %}
+
+                <div class="warning">
+
+                    No eligible employee is available. First assign the
+                    Manager or Acting Manager post from the Posts /
+                    Charges page.
+
+                </div>
+
+            {% endif %}
+
+
+            <form method="POST">
+
+                <div class="form-group">
+
+                    <label for="responsibility_type">
+                        Responsibility Type
+                    </label>
+
+                    <select
+                        id="responsibility_type"
+                        name="responsibility_type"
+                        required
+                        {% if
+                            division["is_active"] == 0
+                            or not eligible_employees
+                        %}
+                            disabled
+                        {% endif %}
+                    >
+
+                        <option value="">
+                            Select Responsibility Type
+                        </option>
+
+                        <option
+                            value="Manager"
+                            {% if
+                                current_management
+                                and
+                                current_management["responsibility_type"]
+                                == "Manager"
+                            %}
+                                selected
+                            {% endif %}
+                        >
+                            Manager — Primary Division
+                        </option>
+
+                        <option
+                            value="Acting Manager"
+                            {% if
+                                current_management
+                                and
+                                current_management["responsibility_type"]
+                                == "Acting Manager"
+                            %}
+                                selected
+                            {% endif %}
+                        >
+                            Acting Manager — Temporary / Additional Charge
+                        </option>
+
+                    </select>
+
+                    <div class="help-text">
+
+                        Select Manager for the employee's one primary
+                        Division. Select Acting Manager for temporary or
+                        additional responsibility.
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="employee_id">
+                        Employee
+                    </label>
+
+                    <select
+                        id="employee_id"
+                        name="employee_id"
+                        required
+                        {% if
+                            division["is_active"] == 0
+                            or not eligible_employees
+                        %}
+                            disabled
+                        {% endif %}
+                    >
+
+                        <option value="">
+                            Select Employee
+                        </option>
+
+                        {% for employee in eligible_employees %}
+
+                            <option
+                                value="{{ employee['id'] }}"
+                                data-post="{{ employee['active_post'] }}"
+                                {% if
+                                    current_management
+                                    and
+                                    current_management["employee_id"]
+                                    == employee["id"]
+                                %}
+                                    selected
+                                {% endif %}
+                            >
+
+                                {{ employee["name"] }}
+                                — PIN {{ employee["pin"] }}
+                                — {{ employee["active_post"] }}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <div class="help-text">
+
+                        Only employees with an active Manager or Acting
+                        Manager post appear in this list.
+
+                    </div>
+
+                </div>
+
+
+                <div class="buttons">
+
+                    <button
+                        type="submit"
+                        class="btn"
+                        {% if
+                            division["is_active"] == 0
+                            or not eligible_employees
+                        %}
+                            disabled
+                        {% endif %}
+                    >
+                        Save Division Incharge
+                    </button>
+
+                    <a
+                        href="/admin/units"
+                        class="cancel"
+                    >
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>Management History</h2>
+
+            <p class="description">
+                Previous Managers and Acting Managers remain available
+                for audit.
+            </p>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>Employee</th>
+
+                            <th>PIN</th>
+
+                            <th>Responsibility</th>
+
+                            <th>Start Date</th>
+
+                            <th>End Date</th>
+
+                            <th>Status</th>
+
+                        </tr>
+
+                    </thead>
+
+
+                    <tbody>
+
+                        {% if management_history %}
+
+                            {% for history in management_history %}
+
+                                <tr>
+
+                                    <td>
+                                        {{ history["employee_name"] }}
+                                    </td>
+
+                                    <td>
+                                        {{ history["pin"] }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if
+                                            history["responsibility_type"]
+                                            == "Manager"
+                                        %}
+
+                                            <span class="status manager-badge">
+                                                Manager
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="status acting-badge">
+                                                Acting Manager
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+                                        {{ history["start_date"] }}
+                                    </td>
+
+                                    <td>
+
+                                        {% if history["end_date"] %}
+
+                                            {{ history["end_date"] }}
+
+                                        {% else %}
+
+                                            —
+
+                                        {% endif %}
+
+                                    </td>
+
+                                    <td>
+
+                                        {% if history["is_active"] == 1 %}
+
+                                            <span class="status active">
+                                                Current
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="status historical">
+                                                Historical
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        {% else %}
+
+                            <tr>
+
+                                <td
+                                    colspan="6"
+                                    class="empty"
+                                >
+                                    No Manager or Acting Manager has
+                                    been assigned yet.
+                                </td>
+
+                            </tr>
+
+                        {% endif %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        const responsibilitySelect = document.getElementById(
+            "responsibility_type"
+        );
+
+        const employeeSelect = document.getElementById(
+            "employee_id"
+        );
+
+        function filterEligibleEmployees() {
+
+            const responsibilityType =
+                responsibilitySelect.value;
+
+            const currentEmployeeValue =
+                employeeSelect.value;
+
+            let currentEmployeeAllowed = false;
+
+            Array.from(employeeSelect.options).forEach(
+                function (option) {
+
+                    if (!option.value) {
+                        return;
+                    }
+
+                    const activePost =
+                        option.dataset.post;
+
+                    let allowed = false;
+
+                    if (responsibilityType === "Manager") {
+
+                        allowed =
+                            activePost === "Manager";
+
+                    } else if (
+                        responsibilityType === "Acting Manager"
+                    ) {
+
+                        allowed =
+                            activePost === "Manager"
+                            ||
+                            activePost === "Acting Manager";
+
+                    }
+
+                    option.hidden = !allowed;
+                    option.disabled = !allowed;
+
+                    if (
+                        allowed
+                        &&
+                        option.value === currentEmployeeValue
+                    ) {
+                        currentEmployeeAllowed = true;
+                    }
+
+                }
+            );
+
+            if (!currentEmployeeAllowed) {
+                employeeSelect.value = "";
+            }
+
+        }
+
+        responsibilitySelect.addEventListener(
+            "change",
+            filterEligibleEmployees
+        );
+
+        filterEligibleEmployees();
+
+    </script>
+
+</body>
+
+</html>

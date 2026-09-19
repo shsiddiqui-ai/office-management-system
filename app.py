@@ -1062,6 +1062,392 @@ def manage_division_reporting_authority(division_id):
         reporting_history=reporting_history
     )
 
+# =================================================
+# DIVISION MANAGER / ACTING MANAGER
+# =================================================
+
+@app.route(
+    "/admin/divisions/<int:division_id>/management",
+    methods=["GET", "POST"]
+)
+def manage_division_management(division_id):
+
+    connection = get_db_connection()
+
+    division = connection.execute("""
+        SELECT
+            id,
+            name,
+            is_active
+        FROM organizational_units
+        WHERE id = ?
+          AND unit_type = 'Division'
+    """, (division_id,)).fetchone()
+
+    if division is None:
+        connection.close()
+        return "Division not found.", 404
+
+    # Sirf woh active employees available honge jinke paas
+    # active Manager ya Acting Manager post maujood hai.
+    eligible_employees = connection.execute("""
+        SELECT
+            employees.id,
+            employees.pin,
+            employees.name,
+            posts.name AS active_post,
+            employee_post_assignments.id AS post_assignment_id
+        FROM employees
+
+        JOIN employee_post_assignments
+            ON employee_post_assignments.employee_id
+               = employees.id
+           AND employee_post_assignments.is_active = 1
+
+        JOIN posts
+            ON employee_post_assignments.post_id
+               = posts.id
+           AND posts.is_active = 1
+
+        WHERE employees.is_active = 1
+          AND posts.name IN (
+              'Manager',
+              'Acting Manager'
+          )
+
+        ORDER BY
+            employees.name,
+            employees.pin
+    """).fetchall()
+
+    current_management = connection.execute("""
+        SELECT
+            division_management_assignments.id,
+            division_management_assignments.employee_id,
+            division_management_assignments.responsibility_type,
+            division_management_assignments.is_primary,
+            division_management_assignments.post_assignment_id,
+            division_management_assignments.start_date,
+            employees.pin,
+            employees.name AS employee_name,
+            posts.name AS active_post
+        FROM division_management_assignments
+
+        JOIN employees
+            ON division_management_assignments.employee_id
+               = employees.id
+
+        LEFT JOIN employee_post_assignments
+            ON division_management_assignments.post_assignment_id
+               = employee_post_assignments.id
+
+        LEFT JOIN posts
+            ON employee_post_assignments.post_id
+               = posts.id
+
+        WHERE division_management_assignments.division_id = ?
+          AND division_management_assignments.is_active = 1
+    """, (division_id,)).fetchone()
+
+    if request.method == "POST":
+
+        employee_id_value = request.form.get(
+            "employee_id",
+            ""
+        ).strip()
+
+        responsibility_type = request.form.get(
+            "responsibility_type",
+            ""
+        ).strip()
+
+        if division["is_active"] == 0:
+            connection.close()
+
+            return (
+                "Manager or Acting Manager cannot be assigned "
+                "to an inactive Division.",
+                400
+            )
+
+        if not employee_id_value.isdigit():
+            connection.close()
+            return "Please select an employee.", 400
+
+        if responsibility_type not in (
+            "Manager",
+            "Acting Manager"
+        ):
+            connection.close()
+            return "Please select a valid responsibility type.", 400
+
+        employee_id = int(employee_id_value)
+
+        selected_employee = connection.execute("""
+            SELECT
+                employees.id,
+                employees.pin,
+                employees.name,
+                employee_post_assignments.id
+                    AS post_assignment_id,
+                posts.name AS active_post
+            FROM employees
+
+            JOIN employee_post_assignments
+                ON employee_post_assignments.employee_id
+                   = employees.id
+               AND employee_post_assignments.is_active = 1
+
+            JOIN posts
+                ON employee_post_assignments.post_id
+                   = posts.id
+               AND posts.is_active = 1
+
+            WHERE employees.id = ?
+              AND employees.is_active = 1
+              AND posts.name IN (
+                  'Manager',
+                  'Acting Manager'
+              )
+        """, (employee_id,)).fetchone()
+
+        if selected_employee is None:
+            connection.close()
+
+            return (
+                "The selected employee must have an active "
+                "Manager or Acting Manager post.",
+                400
+            )
+
+        active_post = selected_employee["active_post"]
+
+        # Primary Manager responsibility ke liye employee ka
+        # active post Manager hona lazmi hai.
+        if (
+            responsibility_type == "Manager"
+            and active_post != "Manager"
+        ):
+            connection.close()
+
+            return (
+                "An employee with the Acting Manager post cannot "
+                "be assigned as the primary Manager.",
+                400
+            )
+
+        # Manager post holder apni primary Division ke ilawa
+        # additional Divisions ka Acting Manager ban sakta hai.
+        if (
+            responsibility_type == "Acting Manager"
+            and active_post not in (
+                "Manager",
+                "Acting Manager"
+            )
+        ):
+            connection.close()
+            return "Invalid Acting Manager assignment.", 400
+
+        is_primary = (
+            1
+            if responsibility_type == "Manager"
+            else 0
+        )
+
+        # Ek employee sirf ek Division ka primary Manager hoga.
+        if responsibility_type == "Manager":
+
+            other_primary_division = connection.execute("""
+                SELECT
+                    division_management_assignments.id,
+                    organizational_units.name AS division_name
+                FROM division_management_assignments
+
+                JOIN organizational_units
+                    ON division_management_assignments.division_id
+                       = organizational_units.id
+
+                WHERE division_management_assignments.employee_id = ?
+                  AND division_management_assignments.is_active = 1
+                  AND division_management_assignments.responsibility_type
+                      = 'Manager'
+                  AND division_management_assignments.is_primary = 1
+                  AND division_management_assignments.division_id != ?
+            """, (
+                employee_id,
+                division_id
+            )).fetchone()
+
+            if other_primary_division is not None:
+                connection.close()
+
+                return (
+                    "This employee is already the primary Manager of "
+                    f"{other_primary_division['division_name']}. "
+                    "For an additional Division, select Acting Manager.",
+                    400
+                )
+
+        # Bilkul same assignment dobara save ho to duplicate
+        # history record create nahi hoga.
+        if (
+            current_management is not None
+            and current_management["employee_id"] == employee_id
+            and current_management["responsibility_type"]
+                == responsibility_type
+        ):
+            connection.close()
+
+            return redirect(
+                f"/admin/divisions/{division_id}/management"
+            )
+
+        post_assignment_id = selected_employee[
+            "post_assignment_id"
+        ]
+
+        try:
+
+            # Division ke purane current incharge ko history mein
+            # close karein.
+            if current_management is not None:
+
+                connection.execute("""
+                    UPDATE division_management_assignments
+                    SET is_active = 0,
+                        end_date = COALESCE(
+                            end_date,
+                            CURRENT_DATE
+                        )
+                    WHERE id = ?
+                """, (current_management["id"],))
+
+                old_post_assignment_id = current_management[
+                    "post_assignment_id"
+                ]
+
+                # Purana generic unit-responsibility link bhi close hoga.
+                if old_post_assignment_id is not None:
+
+                    connection.execute("""
+                        UPDATE post_assignment_units
+                        SET is_active = 0,
+                            end_date = COALESCE(
+                                end_date,
+                                CURRENT_DATE
+                            )
+                        WHERE post_assignment_id = ?
+                          AND organizational_unit_id = ?
+                          AND is_active = 1
+                    """, (
+                        old_post_assignment_id,
+                        division_id
+                    ))
+
+            # New Manager ya Acting Manager responsibility create karein.
+            connection.execute("""
+                INSERT INTO division_management_assignments
+                (
+                    employee_id,
+                    division_id,
+                    responsibility_type,
+                    is_primary,
+                    post_assignment_id,
+                    start_date,
+                    is_active
+                )
+                VALUES (?, ?, ?, ?, ?, CURRENT_DATE, 1)
+            """, (
+                employee_id,
+                division_id,
+                responsibility_type,
+                is_primary,
+                post_assignment_id
+            ))
+
+            # Agar is post aur Division ka historical link pehle se hai
+            # to usi ko reactivate karein.
+            updated_link = connection.execute("""
+                UPDATE post_assignment_units
+                SET start_date = CURRENT_DATE,
+                    end_date = NULL,
+                    is_active = 1
+                WHERE post_assignment_id = ?
+                  AND organizational_unit_id = ?
+            """, (
+                post_assignment_id,
+                division_id
+            ))
+
+            # Pehli baar responsibility mil rahi ho to new link banega.
+            if updated_link.rowcount == 0:
+
+                connection.execute("""
+                    INSERT INTO post_assignment_units
+                    (
+                        post_assignment_id,
+                        organizational_unit_id,
+                        start_date,
+                        is_active
+                    )
+                    VALUES (?, ?, CURRENT_DATE, 1)
+                """, (
+                    post_assignment_id,
+                    division_id
+                ))
+
+            connection.commit()
+
+        except sqlite3.IntegrityError as error:
+
+            connection.rollback()
+            connection.close()
+
+            return (
+                "This management responsibility could not be saved. "
+                f"Database rule: {error}",
+                400
+            )
+
+        connection.close()
+
+        return redirect(
+            f"/admin/divisions/{division_id}/management"
+        )
+
+    management_history = connection.execute("""
+        SELECT
+            division_management_assignments.id,
+            division_management_assignments.responsibility_type,
+            division_management_assignments.start_date,
+            division_management_assignments.end_date,
+            division_management_assignments.is_active,
+            employees.pin,
+            employees.name AS employee_name
+        FROM division_management_assignments
+
+        JOIN employees
+            ON division_management_assignments.employee_id
+               = employees.id
+
+        WHERE division_management_assignments.division_id = ?
+
+        ORDER BY
+            division_management_assignments.is_active DESC,
+            division_management_assignments.id DESC
+    """, (division_id,)).fetchall()
+
+    connection.close()
+
+    return render_template(
+        "assign_division_management.html",
+        division=division,
+        eligible_employees=eligible_employees,
+        current_management=current_management,
+        management_history=management_history
+    )
+
+
 # -------------------------------------------------
 # DESIGNATIONS
 # -------------------------------------------------
