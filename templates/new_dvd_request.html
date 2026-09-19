@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New DVD Request</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px 5%;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 30px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        select,
+        input {
+            width: 100%;
+            padding: 11px;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .btn {
+            margin-top: 25px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>New DVD Request</h1>
+    </div>
+
+    <div class="container">
+
+        <div class="card">
+
+            <form method="POST">
+
+                <label>Requester Employee</label>
+
+                <select name="requester_employee_id" required>
+                    <option value="">Select Employee</option>
+
+                    {% for employee in employees %}
+                    <option value="{{ employee['id'] }}">
+                         {{ employee["pin"] }}
+                         | {{ employee["name"] }}
+                        | {{ employee["designation_name"] }}
+    | {{ employee["unit_name"] }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+
+                <label>DVD Category</label>
+
+                <select
+                    name="dvd_category"
+                    id="dvd_category"
+                    required
+                    onchange="togglePermanentSource()"
+                >
+
+                    <option value="">Select Category</option>
+
+                    <option value="Internal">Internal</option>
+                    <option value="Internet">Internet</option>
+                    <option value="External">External</option>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Outward">Outward</option>
+                    <option value="Permanent">Permanent</option>
+
+                </select>
+
+
+                <div id="permanent_source_section" class="hidden">
+
+                    <label>Permanent Source Type</label>
+
+                    <select name="permanent_source_type">
+
+                        <option value="">Select Source</option>
+                        <option value="Internal">Internal</option>
+                        <option value="Internet">Internet</option>
+                        <option value="External">External</option>
+                        <option value="Vendor">Vendor</option>
+
+                    </select>
+
+                </div>
+
+
+                <button type="submit" class="btn">
+                    Create Request
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        function togglePermanentSource() {
+
+            const category =
+                document.getElementById("dvd_category").value;
+
+            const sourceSection =
+                document.getElementById("permanent_source_section");
+
+            if (category === "Permanent") {
+
+                sourceSection.classList.remove("hidden");
+
+            } else {
+
+                sourceSection.classList.add("hidden");
+
+            }
+
+        }
+
+    </script>
+
+</body>
+</html>

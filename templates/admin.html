@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Admin Dashboard</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            width: 90%;
+            margin: 30px auto;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #1f2937;
+        }
+
+        .card p {
+            color: #555;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 16px;
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div class="header">
+
+        <h1>Admin Dashboard</h1>
+
+        <p>Office Management System</p>
+
+    </div>
+
+
+    <div class="container">
+
+
+        <div class="grid">
+
+
+            <!-- ORGANIZATIONAL UNITS -->
+
+            <div class="card">
+
+                <h2>Organizational Units</h2>
+
+                <p>
+                    Add, rename, deactivate and manage reporting hierarchy.
+                </p>
+
+                <a href="/admin/units" class="btn">
+                    Manage Units
+                </a>
+
+            </div>
+
+
+            <!-- DESIGNATIONS -->
+
+            <div class="card">
+
+                <h2>Designations</h2>
+
+                <p>
+                    Add and manage employee designations.
+                </p>
+
+                <a href="/admin/designations" class="btn">
+                    Manage Designations
+                </a>
+
+            </div>
+
+
+            <!-- EMPLOYEES -->
+
+            <div class="card">
+
+                <h2>Employees</h2>
+
+                <p>
+                    Add employees, assign divisions/units and manage employee records.
+                </p>
+
+                <a href="/admin/employees" class="btn">
+                    Manage Employees
+                </a>
+
+            </div>
+
+
+            <!-- POSTS / CHARGES -->
+
+            <div class="card">
+
+                <h2>Posts / Charges</h2>
+
+                <p>
+                    Assign organizational responsibilities such as Manager,
+                    Head, Senior Director and other charges.
+                </p>
+
+                <a href="/admin/posts" class="btn">
+                    Manage Posts
+                </a>
+
+            </div>
+
+
+        </div>
+
+
+    </div>
+
+
+</body>
+
+</html>

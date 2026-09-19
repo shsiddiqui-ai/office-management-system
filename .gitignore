@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Local SQLite databases and backups
+database/*.db
+database/*.db-*
+*.db-journal
+
+# Local backup files
+database/*backup*.db
+database/*before*.db

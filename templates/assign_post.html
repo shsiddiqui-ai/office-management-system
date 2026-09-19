@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Assign Post / Charge</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 22px 5%;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 27px;
+        }
+
+        .header p {
+            margin: 7px 0 0;
+            color: #d1d5db;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 850px;
+            margin: 30px auto;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 18px;
+            color: #2563eb;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .form-group {
+            margin-bottom: 23px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 7px;
+            background-color: white;
+            color: #1f2937;
+            font-size: 15px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .section-title {
+            margin: 28px 0 5px;
+            font-size: 18px;
+        }
+
+        .help {
+            margin: 0 0 15px;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .required-note {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .unit-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(230px, 1fr));
+            gap: 11px;
+        }
+
+        .unit-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 13px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background-color: #f9fafb;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .unit-option:hover {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+        }
+
+        .unit-option input {
+            width: 17px;
+            height: 17px;
+            margin-top: 1px;
+            cursor: pointer;
+        }
+
+        .unit-name {
+            display: block;
+            font-weight: bold;
+        }
+
+        .unit-type {
+            display: block;
+            margin-top: 4px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .rules-box {
+            margin-top: 25px;
+            padding: 16px;
+            border-left: 4px solid #2563eb;
+            border-radius: 6px;
+            background-color: #eff6ff;
+            color: #1e3a8a;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .buttons {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 7px;
+            padding: 12px 20px;
+            background-color: #2563eb;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .cancel {
+            padding: 11px 18px;
+            color: #374151;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .empty-units {
+            padding: 18px;
+            border: 1px dashed #d1d5db;
+            border-radius: 7px;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+
+            .card {
+                padding: 20px;
+            }
+
+            .unit-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .buttons {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .btn,
+            .cancel {
+                width: 100%;
+                text-align: center;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="header">
+
+        <h1>Assign Post / Charge</h1>
+
+        <p>
+            Assign one active organizational post
+            and its responsible units.
+        </p>
+
+    </div>
+
+    <div class="container">
+
+        <a href="/admin/posts"
+           class="back-link">
+
+            ← Back to Posts / Charges
+
+        </a>
+
+        <div class="card">
+
+            <form method="POST">
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Employee
+                    </label>
+
+                    <select name="employee_id" required>
+
+                        <option value="">
+                            Select Employee
+                        </option>
+
+                        {% for employee in employees %}
+
+                            <option value="{{ employee['id'] }}">
+
+                                {{ employee["pin"] }}
+                                |
+                                {{ employee["name"] }}
+                                |
+                                {{ employee["designation_name"] }}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label class="form-label">
+                        Post / Charge
+                    </label>
+
+                    <select name="post_id" required>
+
+                        <option value="">
+                            Select Post / Charge
+                        </option>
+
+                        {% for post in posts %}
+
+                            <option value="{{ post['id'] }}">
+
+                                {{ post["name"] }}
+
+                                {% if post["max_active_holders"] == 1 %}
+
+                                    — Single Holder
+
+                                {% endif %}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+                <h2 class="section-title">
+                    Responsible Division(s) / Unit(s)
+                </h2>
+
+                <p class="help">
+
+                    Manager, Acting Manager and Head ke liye
+                    kam az kam one unit select karna lazmi hai.
+
+                    <span class="required-note">
+                        Multiple units select ki ja sakti hain.
+                    </span>
+
+                </p>
+
+                {% if units %}
+
+                    <div class="unit-grid">
+
+                        {% for unit in units %}
+
+                            <label class="unit-option">
+
+                                <input
+                                    type="checkbox"
+                                    name="organizational_unit_ids"
+                                    value="{{ unit['id'] }}"
+                                >
+
+                                <span>
+
+                                    <span class="unit-name">
+                                        {{ unit["name"] }}
+                                    </span>
+
+                                    <span class="unit-type">
+                                        {{ unit["unit_type"] }}
+                                    </span>
+
+                                </span>
+
+                            </label>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% else %}
+
+                    <div class="empty-units">
+
+                        No active organizational units are available.
+
+                    </div>
+
+                {% endif %}
+
+                <div class="rules-box">
+
+                    <strong>Assignment rules:</strong>
+
+                    <br>
+
+                    • One employee/PIN can hold only one active post.
+
+                    <br>
+
+                    • Manager, Acting Manager and Head can be
+                    responsible for multiple units.
+
+                    <br>
+
+                    • Senior Director, Plant Manager,
+                    Deputy Plant Manager, HLAO and
+                    Principal Administrator can remain
+                    organization-level posts.
+
+                    <br>
+
+                    • Ending an assignment will preserve its history.
+
+                </div>
+
+                <div class="buttons">
+
+                    <button type="submit"
+                            class="btn">
+
+                        Save Assignment
+
+                    </button>
+
+                    <a href="/admin/posts"
+                       class="cancel">
+
+                        Cancel
+
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

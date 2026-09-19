@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Employee</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px 5%;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 700px;
+            margin: 30px auto;
+        }
+
+        .card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 11px;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .pin-box {
+            background-color: #f3f4f6;
+        }
+
+        .buttons {
+            margin-top: 25px;
+        }
+
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .cancel {
+            margin-left: 10px;
+            text-decoration: none;
+            color: #374151;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div class="header">
+        <h1>Edit Employee</h1>
+    </div>
+
+
+    <div class="container">
+
+        <div class="card">
+
+            <form method="POST">
+
+
+                <label>PIN Number</label>
+
+                <input
+                    type="text"
+                    value="{{ employee['pin'] }}"
+                    class="pin-box"
+                    readonly
+                >
+
+
+                <label>Employee Name</label>
+
+                <input
+                    type="text"
+                    name="name"
+                    value="{{ employee['name'] }}"
+                    required
+                >
+
+
+                <label>Designation</label>
+
+                <select name="designation_id" required>
+
+                    {% for designation in designations %}
+
+                        <option
+                            value="{{ designation['id'] }}"
+                            {% if employee["designation_id"] == designation["id"] %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ designation["name"] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+
+                <label>Division / Office / Unit</label>
+
+                <select name="organizational_unit_id" required>
+
+                    {% for unit in units %}
+
+                        <option
+                            value="{{ unit['id'] }}"
+                            {% if employee["organizational_unit_id"] == unit["id"] %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ unit["name"] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+
+                <label>Extension Number</label>
+
+                <input
+                    type="text"
+                    name="extension_number"
+                    value="{{ employee['extension_number'] or '' }}"
+                >
+
+
+                <div class="buttons">
+
+                    <button type="submit" class="btn">
+                        Save Changes
+                    </button>
+
+                    <a href="/admin/employees" class="cancel">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+</body>
+</html>

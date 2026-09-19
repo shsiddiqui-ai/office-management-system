@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Posts / Charges</title>
+
+    <style>
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px 5%;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .header p {
+            margin-top: 7px;
+            color: #d1d5db;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1100px;
+            margin: 30px auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            text-decoration: none;
+            color: #2563eb;
+            font-weight: bold;
+        }
+
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            text-decoration: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+        }
+
+        .card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+        }
+
+        .active {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .inactive {
+            color: #b91c1c;
+            font-weight: bold;
+        }
+
+        .empty {
+            text-align: center;
+            color: #6b7280;
+            padding: 35px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <div class="header">
+
+        <h1>Posts / Charges</h1>
+
+        <p>
+            Manage employee responsibilities and organizational charges.
+        </p>
+
+    </div>
+
+
+    <div class="container">
+
+
+        <div class="top-bar">
+
+            <a href="/admin"
+               class="back-link">
+
+                ← Back to Admin Dashboard
+
+            </a>
+
+
+            <a href="/admin/posts/assign"
+               class="btn">
+
+                + Assign Post / Charge
+
+            </a>
+
+        </div>
+
+
+        <div class="card">
+
+
+            <table>
+
+
+                <thead>
+
+                    <tr>
+
+                        <th>PIN</th>
+
+                        <th>Employee</th>
+
+                        <th>Post / Charge</th>
+
+                        <th>Division / Unit</th>
+
+                        <th>Start Date</th>
+
+                        <th>Status</th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody>
+
+
+                    {% if assignments %}
+
+
+                        {% for assignment in assignments %}
+
+
+                            <tr>
+
+
+                                <td>
+                                    {{ assignment["pin"] }}
+                                </td>
+
+
+                                <td>
+                                    {{ assignment["employee_name"] }}
+                                </td>
+
+
+                                <td>
+                                    {{ assignment["post_name"] }}
+                                </td>
+
+
+                                <td>
+
+                                    {% if assignment["unit_name"] %}
+
+                                        {{ assignment["unit_name"] }}
+
+                                    {% else %}
+
+                                        Organization Level
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <td>
+                                    {{ assignment["start_date"] }}
+                                </td>
+
+
+                                <td>
+
+                                    {% if assignment["is_active"] == 1 %}
+
+                                        <span class="active">
+                                            Active
+                                        </span>
+
+                                    {% else %}
+
+                                        <span class="inactive">
+                                            Inactive
+                                        </span>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                            </tr>
+
+
+                        {% endfor %}
+
+
+                    {% else %}
+
+
+                        <tr>
+
+                            <td colspan="6"
+                                class="empty">
+
+                                No post/charge assignments have been created yet.
+
+                            </td>
+
+                        </tr>
+
+
+                    {% endif %}
+
+
+                </tbody>
+
+
+            </table>
+
+
+        </div>
+
+
+    </div>
+
+
+</body>
+
+</html>

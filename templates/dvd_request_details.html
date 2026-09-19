@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DVD Request Details</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px 5%;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 30px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .row {
+            margin-bottom: 14px;
+        }
+
+        .label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>DVD Request Details</h1>
+    </div>
+
+    <div class="container">
+
+        <div class="card">
+
+            <div class="row">
+                <span class="label">Request ID:</span>
+                {{ dvd_request["id"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">Employee:</span>
+                {{ dvd_request["name"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">PIN:</span>
+                {{ dvd_request["pin"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">Designation:</span>
+                {{ dvd_request["designation_name"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">Organizational Unit:</span>
+                {{ dvd_request["unit_name"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">Extension:</span>
+                {{ dvd_request["extension_number"] or "-" }}
+            </div>
+
+            <div class="row">
+                <span class="label">DVD Category:</span>
+                {{ dvd_request["dvd_category"] }}
+            </div>
+
+            {% if dvd_request["dvd_category"] == "Permanent" %}
+
+            <div class="row">
+                <span class="label">Permanent Source:</span>
+                {{ dvd_request["permanent_source_type"] }}
+            </div>
+
+            {% endif %}
+
+            <div class="row">
+                <span class="label">Status:</span>
+                {{ dvd_request["status"] }}
+            </div>
+
+            <div class="row">
+                <span class="label">Created:</span>
+                {{ dvd_request["created_at"] }}
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

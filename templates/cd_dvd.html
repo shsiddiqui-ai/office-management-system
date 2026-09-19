@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CD/DVD Management</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .header {
+            background-color: #1f4e79;
+            color: white;
+            padding: 25px;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .header p {
+            margin-top: 8px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1100px;
+            margin: 30px auto;
+        }
+
+        .services {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: #1f4e79;
+        }
+
+        .card p {
+            color: #555;
+        }
+
+        .card button {
+            background-color: #1f4e79;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .card button:hover {
+            background-color: #163a5c;
+        }
+
+        .section-title {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>CD/DVD Management</h1>
+        <p>Manage CD/DVD requests, issues, replacements and disposal records.</p>
+    </div>
+
+    <div class="container">
+
+        <h2 class="section-title">CD/DVD Services</h2>
+
+        <div class="services">
+
+            <div class="card">
+                <h3>New DVD Request</h3>
+                <p>Create a new request for CD/DVD issuance.</p>
+                <button>Open</button>
+            </div>
+
+            <div class="card">
+                <h3>My Requests</h3>
+                <p>View your submitted CD/DVD requests and their status.</p>
+                <button>View</button>
+            </div>
+
+            <div class="card">
+                <h3>Pending Approvals</h3>
+                <p>Review requests waiting for approval.</p>
+                <button>View</button>
+            </div>
+
+            <div class="card">
+                <h3>Issued DVDs</h3>
+                <p>View DVDs that have been issued and are currently in use.</p>
+                <button>View</button>
+            </div>
+
+            <div class="card">
+                <h3>Faulty / Replacement</h3>
+                <p>Manage faulty DVDs and their replacement records.</p>
+                <button>Manage</button>
+            </div>
+
+            <div class="card">
+                <h3>Shredding / Disposal</h3>
+                <p>Manage DVD shredding and disposal records.</p>
+                <button>Manage</button>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

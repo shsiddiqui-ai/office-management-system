@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Edit Organizational Unit</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #1f2937;
+        }
+
+        .header {
+            background-color: #1f2937;
+            color: white;
+            padding: 20px 5%;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 700px;
+            margin: 30px auto;
+        }
+
+        .card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        label {
+            display: block;
+            margin-top: 18px;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 11px;
+            box-sizing: border-box;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+
+        .buttons {
+            margin-top: 25px;
+        }
+
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 11px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .cancel {
+            margin-left: 10px;
+            color: #374151;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>Edit Organizational Unit</h1>
+    </div>
+
+    <div class="container">
+
+        <div class="card">
+
+            <form method="POST">
+
+                <label>Unit Name</label>
+
+                <input
+                    type="text"
+                    name="name"
+                    value="{{ unit['name'] }}"
+                    required
+                >
+
+
+                <label>Unit Type</label>
+
+                <select name="unit_type" required>
+
+                    <option value="Authority"
+                        {% if unit["unit_type"] == "Authority" %}selected{% endif %}>
+                        Authority
+                    </option>
+
+                    <option value="Office"
+                        {% if unit["unit_type"] == "Office" %}selected{% endif %}>
+                        Office
+                    </option>
+
+                    <option value="Division"
+                        {% if unit["unit_type"] == "Division" %}selected{% endif %}>
+                        Division
+                    </option>
+
+                    <option value="Department"
+                        {% if unit["unit_type"] == "Department" %}selected{% endif %}>
+                        Department
+                    </option>
+
+                    <option value="Section"
+                        {% if unit["unit_type"] == "Section" %}selected{% endif %}>
+                        Section
+                    </option>
+
+                </select>
+
+
+                <label>Reports To</label>
+
+                <select name="parent_id">
+
+                    <option value=""
+                        {% if unit["parent_id"] is none %}selected{% endif %}>
+                        Top Level / No Parent
+                    </option>
+
+                    {% for parent in parent_units %}
+
+                        <option
+                            value="{{ parent['id'] }}"
+                            {% if unit["parent_id"] == parent["id"] %}selected{% endif %}
+                        >
+                            {{ parent["name"] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+
+                <div class="buttons">
+
+                    <button type="submit" class="btn">
+                        Save Changes
+                    </button>
+
+                    <a href="/admin/units" class="cancel">
+                        Cancel
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</body>
+</html>
