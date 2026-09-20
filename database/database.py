@@ -826,6 +826,398 @@ ON section_head_assignments (
 WHERE is_active = 1
 """)
 
+# =================================================
+# USER ACCOUNTS
+# =================================================
+
+# Har login account ek employee record ke saath linked hoga.
+# Employee PIN login identity ke taur par use ho sakta hai,
+# jabke password kabhi plain text mein save nahi hoga.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS user_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    employee_id INTEGER NOT NULL UNIQUE,
+
+    password_hash TEXT NOT NULL,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    must_change_password INTEGER NOT NULL DEFAULT 1
+        CHECK (must_change_password IN (0, 1)),
+
+    failed_login_attempts INTEGER NOT NULL DEFAULT 0
+        CHECK (failed_login_attempts >= 0),
+
+    locked_until TEXT,
+
+    last_login_at TEXT,
+
+    password_changed_at TEXT,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (employee_id)
+        REFERENCES employees(id)
+)
+""")
+
+
+# =================================================
+# SYSTEM ROLES
+# =================================================
+
+# Manager, Acting Manager aur Head access unki current
+# organizational responsibilities se determine hoga.
+# Yeh table explicit software-level roles ke liye hai.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS system_roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+
+    description TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+
+default_system_roles = [
+    (
+        "Super Admin",
+        "Full system access including user and permission management."
+    ),
+    (
+        "Admin",
+        "Manages organizational structure, employees and system records."
+    ),
+    (
+        "Cyber Security",
+        "Reviews and processes Cyber Security approval work."
+    ),
+    (
+        "Technical Incharge",
+        "Processes DVD issuance, return, shred and replacement work."
+    ),
+    (
+        "Employee",
+        "Creates requests and views personal records."
+    )
+]
+
+
+for role_name, role_description in default_system_roles:
+
+    connection.execute("""
+        INSERT OR IGNORE INTO system_roles
+        (
+            name,
+            description
+        )
+        VALUES (?, ?)
+    """, (
+        role_name,
+        role_description
+    ))
+
+
+# =================================================
+# USER ROLE ASSIGNMENT HISTORY
+# =================================================
+
+# Ek account multiple explicit system roles rakh sakta hai.
+# Role changes delete nahi hongi; start/end dates ke saath
+# history mein preserve rahengi.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS user_role_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    user_account_id INTEGER NOT NULL,
+
+    system_role_id INTEGER NOT NULL,
+
+    assigned_by_user_account_id INTEGER,
+
+    start_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    end_date TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    FOREIGN KEY (user_account_id)
+        REFERENCES user_accounts(id),
+
+    FOREIGN KEY (system_role_id)
+        REFERENCES system_roles(id),
+
+    FOREIGN KEY (assigned_by_user_account_id)
+        REFERENCES user_accounts(id)
+)
+""")
+
+
+# Same account ko same role ki duplicate active assignment
+# nahi di ja sakti.
+connection.execute("""
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_one_active_user_system_role
+ON user_role_assignments (
+    user_account_id,
+    system_role_id
+)
+WHERE is_active = 1
+""")
+
+
+# =================================================
+# PERMISSIONS
+# =================================================
+
+# Permissions role names ke andar hardcode nahi hongi.
+# Is se future mein access rules professional aur scalable rahenge.
+connection.execute("""
+CREATE TABLE IF NOT EXISTS permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    code TEXT NOT NULL COLLATE NOCASE UNIQUE,
+
+    name TEXT NOT NULL,
+
+    description TEXT,
+
+    is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1)),
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+
+# =================================================
+# ROLE PERMISSIONS
+# =================================================
+
+connection.execute("""
+CREATE TABLE IF NOT EXISTS system_role_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    system_role_id INTEGER NOT NULL,
+
+    permission_id INTEGER NOT NULL,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (system_role_id)
+        REFERENCES system_roles(id),
+
+    FOREIGN KEY (permission_id)
+        REFERENCES permissions(id),
+
+    UNIQUE (
+        system_role_id,
+        permission_id
+    )
+)
+""")
+
+# =================================================
+# DEFAULT PERMISSIONS
+# =================================================
+
+default_permissions = [
+    (
+        "dashboard.view",
+        "View Dashboard",
+        "Allows access to the appropriate system dashboard."
+    ),
+    (
+        "organization.view",
+        "View Organization",
+        "Allows viewing organizational hierarchy and structure."
+    ),
+    (
+        "organization.manage",
+        "Manage Organization",
+        "Allows management of Divisions, Offices, Sections and responsibilities."
+    ),
+    (
+        "employees.view",
+        "View Employees",
+        "Allows viewing employee records."
+    ),
+    (
+        "employees.manage",
+        "Manage Employees",
+        "Allows adding, editing and transferring employees."
+    ),
+    (
+        "accounts.manage",
+        "Manage User Accounts",
+        "Allows creating, activating and deactivating login accounts."
+    ),
+    (
+        "roles.manage",
+        "Manage Roles and Permissions",
+        "Allows assigning system roles and permissions."
+    ),
+    (
+        "dvd.request.create",
+        "Create DVD Request",
+        "Allows an employee to submit a CD or DVD request."
+    ),
+    (
+        "dvd.request.view_own",
+        "View Own DVD Requests",
+        "Allows an employee to view their own CD or DVD requests."
+    ),
+    (
+        "dvd.request.view_all",
+        "View All DVD Requests",
+        "Allows authorized staff to view all CD or DVD requests."
+    ),
+    (
+        "dvd.request.manager_approve",
+        "Manager DVD Approval",
+        "Allows a current Manager or Acting Manager to process assigned Division requests."
+    ),
+    (
+        "dvd.request.cyber_review",
+        "Cyber Security DVD Review",
+        "Allows Cyber Security staff to review approved requests."
+    ),
+    (
+        "dvd.request.technical_process",
+        "Technical DVD Processing",
+        "Allows Technical Incharge staff to issue, replace, shred and close DVDs."
+    ),
+    (
+        "dvd.reports.view",
+        "View DVD Reports",
+        "Allows access to CD or DVD operational and audit reports."
+    )
+]
+
+
+for permission_code, permission_name, permission_description in (
+    default_permissions
+):
+
+    connection.execute("""
+        INSERT OR IGNORE INTO permissions
+        (
+            code,
+            name,
+            description
+        )
+        VALUES (?, ?, ?)
+    """, (
+        permission_code,
+        permission_name,
+        permission_description
+    ))
+
+
+# =================================================
+# DEFAULT ROLE-PERMISSION MAPPINGS
+# =================================================
+
+# Super Admin ko current aur future tamam active permissions milengi.
+connection.execute("""
+    INSERT OR IGNORE INTO system_role_permissions
+    (
+        system_role_id,
+        permission_id
+    )
+    SELECT
+        system_roles.id,
+        permissions.id
+    FROM system_roles
+
+    CROSS JOIN permissions
+
+    WHERE system_roles.name = 'Super Admin'
+      AND system_roles.is_active = 1
+      AND permissions.is_active = 1
+""")
+
+
+default_role_permissions = {
+
+    "Admin": [
+        "dashboard.view",
+        "organization.view",
+        "organization.manage",
+        "employees.view",
+        "employees.manage",
+        "accounts.manage",
+        "roles.manage",
+        "dvd.request.view_all",
+        "dvd.reports.view"
+    ],
+
+    "Cyber Security": [
+        "dashboard.view",
+        "organization.view",
+        "employees.view",
+        "dvd.request.create",
+        "dvd.request.view_own",
+        "dvd.request.view_all",
+        "dvd.request.cyber_review"
+    ],
+
+    "Technical Incharge": [
+        "dashboard.view",
+        "organization.view",
+        "employees.view",
+        "dvd.request.create",
+        "dvd.request.view_own",
+        "dvd.request.view_all",
+        "dvd.request.technical_process",
+        "dvd.reports.view"
+    ],
+
+    "Employee": [
+        "dashboard.view",
+        "dvd.request.create",
+        "dvd.request.view_own"
+    ]
+}
+
+
+for role_name, permission_codes in default_role_permissions.items():
+
+    for permission_code in permission_codes:
+
+        connection.execute("""
+            INSERT OR IGNORE INTO system_role_permissions
+            (
+                system_role_id,
+                permission_id
+            )
+            SELECT
+                system_roles.id,
+                permissions.id
+            FROM system_roles
+
+            JOIN permissions
+                ON permissions.code = ?
+
+            WHERE system_roles.name = ?
+              AND system_roles.is_active = 1
+              AND permissions.is_active = 1
+        """, (
+            permission_code,
+            role_name
+        ))
+
 connection.commit()            
 connection.close()
 
