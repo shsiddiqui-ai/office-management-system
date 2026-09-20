@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Organization Hierarchy</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy: #102a43;
+            --navy-light: #173f5f;
+            --blue: #2563eb;
+            --blue-light: #eff6ff;
+            --teal: #007c83;
+            --teal-light: #e8f5f5;
+            --green: #15803d;
+            --green-light: #ecfdf3;
+            --amber: #b45309;
+            --amber-light: #fff7ed;
+            --red: #b91c1c;
+            --red-light: #fef2f2;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-500: #64748b;
+            --gray-700: #334155;
+            --white: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            font-family:
+                "Segoe UI",
+                Arial,
+                sans-serif;
+            background-color: var(--gray-100);
+            color: #1e293b;
+        }
+
+        .page-header {
+            position: relative;
+            overflow: hidden;
+            padding: 32px 5%;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--navy) 0%,
+                    var(--navy-light) 65%,
+                    var(--teal) 100%
+                );
+            color: var(--white);
+        }
+
+        .page-header::after {
+            position: absolute;
+            top: -90px;
+            right: -90px;
+            width: 260px;
+            height: 260px;
+            border: 45px solid rgba(255, 255, 255, 0.06);
+            border-radius: 50%;
+            content: "";
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        .eyebrow {
+            margin-bottom: 10px;
+            color: #99f6e4;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .page-header h1 {
+            margin: 0;
+            font-size: 34px;
+            line-height: 1.2;
+        }
+
+        .page-header p {
+            max-width: 750px;
+            margin: 12px 0 0;
+            color: #dbeafe;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1400px;
+            margin: 30px auto 60px;
+        }
+
+        .top-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--blue);
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 999px;
+            background-color: var(--green-light);
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .live-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: #22c55e;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.14);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(190px, 1fr));
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .stat {
+            padding: 20px;
+            border: 1px solid var(--gray-200);
+            border-radius: 12px;
+            background-color: var(--white);
+            box-shadow: 0 3px 12px rgba(15, 23, 42, 0.05);
+        }
+
+        .stat-label {
+            margin-bottom: 7px;
+            color: var(--gray-500);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            color: var(--navy);
+            font-size: 28px;
+            font-weight: 800;
+        }
+
+        .panel {
+            margin-bottom: 28px;
+            padding: 28px;
+            border: 1px solid var(--gray-200);
+            border-radius: 14px;
+            background-color: var(--white);
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+        }
+
+        .section-heading {
+            margin-bottom: 25px;
+        }
+
+        .section-heading h2 {
+            margin: 0 0 7px;
+            color: var(--navy);
+            font-size: 25px;
+        }
+
+        .section-heading p {
+            margin: 0;
+            color: var(--gray-500);
+            line-height: 1.6;
+        }
+
+        /* =========================================
+           TOP AUTHORITY HIERARCHY
+        ========================================= */
+
+        .authority-area {
+            max-width: 1050px;
+            margin: auto;
+        }
+
+        .authority-chain {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .authority-node {
+            position: relative;
+            width: 310px;
+            min-height: 105px;
+            padding: 17px 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .authority-node.primary {
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--navy),
+                    var(--navy-light)
+                );
+            color: var(--white);
+            box-shadow: 0 8px 20px rgba(16, 42, 67, 0.18);
+        }
+
+        .authority-node.secondary {
+            border: 2px solid #93c5fd;
+            background-color: var(--blue-light);
+            color: var(--navy);
+        }
+
+        .authority-node.tertiary {
+            border: 2px solid #99f6e4;
+            background-color: var(--teal-light);
+            color: var(--navy);
+        }
+
+        .post-name {
+            margin-bottom: 8px;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .holder-name {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .holder-pin {
+            margin-top: 5px;
+            font-size: 13px;
+            opacity: 0.78;
+        }
+
+        .vacant {
+            color: var(--amber);
+            font-weight: 700;
+        }
+
+        .authority-node.primary .vacant {
+            color: #fde68a;
+        }
+
+        .vertical-connector {
+            width: 3px;
+            height: 35px;
+            background-color: #94a3b8;
+        }
+
+        .vertical-connector::after {
+            display: block;
+            width: 0;
+            height: 0;
+            margin-left: -5px;
+            border-top: 8px solid #94a3b8;
+            border-right: 6px solid transparent;
+            border-left: 6px solid transparent;
+            content: "";
+            transform: translateY(29px);
+        }
+
+        .support-branch {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(240px, 1fr));
+            gap: 24px;
+            width: 100%;
+            margin-top: 35px;
+        }
+
+        .support-node {
+            padding: 18px;
+            border: 1px solid var(--gray-200);
+            border-left: 5px solid var(--teal);
+            border-radius: 10px;
+            background-color: var(--gray-50);
+            text-align: center;
+        }
+
+        .support-node .post-name {
+            color: var(--teal);
+            font-size: 16px;
+        }
+
+        /* =========================================
+           DIVISION GROUPS
+        ========================================= */
+
+        .authority-groups {
+            display: grid;
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+            gap: 22px;
+        }
+
+        .authority-group {
+            overflow: hidden;
+            border: 1px solid var(--gray-200);
+            border-radius: 13px;
+            background-color: var(--gray-50);
+        }
+
+        .group-header {
+            padding: 18px;
+            background-color: var(--navy);
+            color: var(--white);
+        }
+
+        .group-header.pm {
+            background-color: var(--blue);
+        }
+
+        .group-header.dpm {
+            background-color: var(--teal);
+        }
+
+        .group-label {
+            margin-bottom: 4px;
+            color: #bfdbfe;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .group-header h3 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .division-list {
+            padding: 15px;
+        }
+
+        .division-card {
+            margin-bottom: 15px;
+            padding: 17px;
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            background-color: var(--white);
+            box-shadow: 0 2px 7px rgba(15, 23, 42, 0.04);
+        }
+
+        .division-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .division-name {
+            margin: 0 0 12px;
+            color: var(--navy);
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .manager-row {
+            margin-bottom: 14px;
+            padding: 11px 12px;
+            border-left: 4px solid var(--blue);
+            border-radius: 6px;
+            background-color: var(--blue-light);
+        }
+
+        .manager-label {
+            margin-bottom: 4px;
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .manager-name {
+            color: var(--navy);
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .manager-detail {
+            margin-top: 3px;
+            color: var(--gray-500);
+            font-size: 12px;
+        }
+
+        .sections-title {
+            margin-bottom: 8px;
+            color: var(--gray-500);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+
+        .section-item {
+            margin-top: 8px;
+            padding: 10px 11px;
+            border: 1px solid #bae6fd;
+            border-radius: 7px;
+            background-color: #f0f9ff;
+        }
+
+        .section-name {
+            color: var(--navy);
+            font-size: 14px;
+            font-weight: 750;
+        }
+
+        .head-detail {
+            margin-top: 5px;
+            color: var(--teal);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .empty-message {
+            padding: 13px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 7px;
+            color: var(--gray-500);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* =========================================
+           OFFICES AND UNASSIGNED
+        ========================================= */
+
+        .office-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(230px, 1fr));
+            gap: 15px;
+        }
+
+        .office-card {
+            padding: 18px;
+            border: 1px solid var(--gray-200);
+            border-top: 4px solid var(--teal);
+            border-radius: 10px;
+            background-color: var(--gray-50);
+        }
+
+        .office-name {
+            margin-bottom: 8px;
+            color: var(--navy);
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .office-parent {
+            color: var(--gray-500);
+            font-size: 13px;
+        }
+
+        .unassigned-panel {
+            border-left: 5px solid var(--amber);
+            background-color: var(--amber-light);
+        }
+
+        .unassigned-list {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(250px, 1fr));
+            gap: 13px;
+        }
+
+        .unassigned-item {
+            padding: 14px;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            background-color: var(--white);
+        }
+
+        .unassigned-item strong {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--navy);
+        }
+
+        .unassigned-item span {
+            color: var(--amber);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .page-note {
+            padding: 18px 20px;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background-color: var(--blue-light);
+            color: #1e3a8a;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 1050px) {
+
+            .authority-groups {
+                grid-template-columns: 1fr;
+            }
+
+        }
+
+        @media (max-width: 700px) {
+
+            .page-header {
+                padding: 25px 20px;
+            }
+
+            .page-header h1 {
+                font-size: 27px;
+            }
+
+            .container {
+                width: 94%;
+            }
+
+            .panel {
+                padding: 20px;
+            }
+
+            .support-branch {
+                grid-template-columns: 1fr;
+            }
+
+            .authority-node {
+                width: 100%;
+                max-width: 310px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <header class="page-header">
+
+        <div class="header-content">
+
+            <div class="eyebrow">
+                Office Management System
+            </div>
+
+            <h1>Organization Hierarchy</h1>
+
+            <p>
+                Live reporting structure showing senior authorities,
+                Divisions, management responsibilities, Sections,
+                Heads and Offices.
+            </p>
+
+        </div>
+
+    </header>
+
+
+    <main class="container">
+
+        <div class="top-navigation">
+
+            <a href="/admin" class="back-link">
+                ← Back to Admin Dashboard
+            </a>
+
+            <div class="live-indicator">
+
+                <span class="live-dot"></span>
+
+                Live Database View
+
+            </div>
+
+        </div>
+
+
+        <!-- SUMMARY STATISTICS -->
+
+        <section class="stats-grid">
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Top Authorities
+                </div>
+
+                <div class="stat-value">
+                    {{ top_authorities|length }}
+                </div>
+
+            </div>
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Active Divisions
+                </div>
+
+                <div class="stat-value">
+                    {{ divisions|length }}
+                </div>
+
+            </div>
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Active Sections
+                </div>
+
+                <div class="stat-value">
+                    {{ sections|length }}
+                </div>
+
+            </div>
+
+            <div class="stat">
+
+                <div class="stat-label">
+                    Active Offices
+                </div>
+
+                <div class="stat-value">
+                    {{ offices|length }}
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- SENIOR AUTHORITY CHAIN -->
+
+        <section class="panel">
+
+            <div class="section-heading">
+
+                <h2>Senior Authority Chain</h2>
+
+                <p>
+                    Current post holders are displayed directly from
+                    active post assignments.
+                </p>
+
+            </div>
+
+
+            <div class="authority-area">
+
+                <div class="authority-chain">
+
+                    {% for authority in top_authorities %}
+
+                        {% if authority.post_name == "Senior Director" %}
+
+                            <div class="authority-node primary">
+
+                                <div class="post-name">
+                                    Senior Director
+                                </div>
+
+                                {% if authority.employee_name %}
+
+                                    <div class="holder-name">
+                                        {{ authority.employee_name }}
+                                    </div>
+
+                                    <div class="holder-pin">
+                                        PIN: {{ authority.pin }}
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="vacant">
+                                        Position Vacant
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+
+                    <div class="vertical-connector"></div>
+
+
+                    {% for authority in top_authorities %}
+
+                        {% if authority.post_name == "Plant Manager" %}
+
+                            <div class="authority-node secondary">
+
+                                <div class="post-name">
+                                    Plant Manager
+                                </div>
+
+                                {% if authority.employee_name %}
+
+                                    <div class="holder-name">
+                                        {{ authority.employee_name }}
+                                    </div>
+
+                                    <div class="holder-pin">
+                                        PIN: {{ authority.pin }}
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="vacant">
+                                        Position Vacant
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+
+                    <div class="vertical-connector"></div>
+
+
+                    {% for authority in top_authorities %}
+
+                        {% if authority.post_name == "Deputy Plant Manager" %}
+
+                            <div class="authority-node tertiary">
+
+                                <div class="post-name">
+                                    Deputy Plant Manager
+                                </div>
+
+                                {% if authority.employee_name %}
+
+                                    <div class="holder-name">
+                                        {{ authority.employee_name }}
+                                    </div>
+
+                                    <div class="holder-pin">
+                                        PIN: {{ authority.pin }}
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="vacant">
+                                        Position Vacant
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </div>
+
+
+                <div class="support-branch">
+
+                    {% for authority in top_authorities %}
+
+                        {% if authority.post_name == "HLAO" %}
+
+                            <div class="support-node">
+
+                                <div class="post-name">
+                                    HLAO
+                                </div>
+
+                                {% if authority.employee_name %}
+
+                                    <div class="holder-name">
+                                        {{ authority.employee_name }}
+                                    </div>
+
+                                    <div class="holder-pin">
+                                        PIN: {{ authority.pin }}
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="vacant">
+                                        Position Vacant
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        {% if authority.post_name == "Principal Administrator" %}
+
+                            <div class="support-node">
+
+                                <div class="post-name">
+                                    Principal Administrator
+                                </div>
+
+                                {% if authority.employee_name %}
+
+                                    <div class="holder-name">
+                                        {{ authority.employee_name }}
+                                    </div>
+
+                                    <div class="holder-pin">
+                                        PIN: {{ authority.pin }}
+                                    </div>
+
+                                {% else %}
+
+                                    <div class="vacant">
+                                        Position Vacant
+                                    </div>
+
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- DIVISIONS BY REPORTING AUTHORITY -->
+
+        <section class="panel">
+
+            <div class="section-heading">
+
+                <h2>Divisions by Reporting Authority</h2>
+
+                <p>
+                    Each Division displays its current reporting authority,
+                    Manager or Acting Manager, and active Sections.
+                </p>
+
+            </div>
+
+
+            <div class="authority-groups">
+
+                <!-- DIRECTLY UNDER SD -->
+
+                <div class="authority-group">
+
+                    <div class="group-header">
+
+                        <div class="group-label">
+                            Reports Directly To
+                        </div>
+
+                        <h3>Senior Director</h3>
+
+                    </div>
+
+                    <div class="division-list">
+
+                        {% set sd_divisions = namespace(count=0) %}
+
+                        {% for division in divisions %}
+
+                            {% if division.authority_post_name == "Senior Director" %}
+
+                                {% set sd_divisions.count =
+                                    sd_divisions.count + 1 %}
+
+                                <div class="division-card">
+
+                                    <div class="division-name">
+                                        {{ division.name }}
+                                    </div>
+
+                                    <div class="manager-row">
+
+                                        <div class="manager-label">
+                                            Division Incharge
+                                        </div>
+
+                                        {% if division.manager_name %}
+
+                                            <div class="manager-name">
+                                                {{ division.manager_name }}
+                                            </div>
+
+                                            <div class="manager-detail">
+                                                {{ division.responsibility_type }}
+                                                · PIN {{ division.manager_pin }}
+                                            </div>
+
+                                        {% else %}
+
+                                            <div class="vacant">
+                                                Manager not assigned
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                    <div class="sections-title">
+                                        Sections
+                                    </div>
+
+                                    {% set section_counter =
+                                        namespace(count=0) %}
+
+                                    {% for section in sections %}
+
+                                        {% if section.division_id ==
+                                            division.id %}
+
+                                            {% set section_counter.count =
+                                                section_counter.count + 1 %}
+
+                                            <div class="section-item">
+
+                                                <div class="section-name">
+                                                    {{ section.name }}
+                                                </div>
+
+                                                {% if section.head_name %}
+
+                                                    <div class="head-detail">
+                                                        Head:
+                                                        {{ section.head_name }}
+                                                        · PIN
+                                                        {{ section.head_pin }}
+                                                    </div>
+
+                                                {% else %}
+
+                                                    <div class="head-detail vacant">
+                                                        Head not assigned
+                                                    </div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    {% endfor %}
+
+                                    {% if section_counter.count == 0 %}
+
+                                        <div class="empty-message">
+                                            No active Sections
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                        {% if sd_divisions.count == 0 %}
+
+                            <div class="empty-message">
+                                No Divisions currently report directly to SD.
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- UNDER PM -->
+
+                <div class="authority-group">
+
+                    <div class="group-header pm">
+
+                        <div class="group-label">
+                            Reports To
+                        </div>
+
+                        <h3>Plant Manager</h3>
+
+                    </div>
+
+                    <div class="division-list">
+
+                        {% set pm_divisions = namespace(count=0) %}
+
+                        {% for division in divisions %}
+
+                            {% if division.authority_post_name == "Plant Manager" %}
+
+                                {% set pm_divisions.count =
+                                    pm_divisions.count + 1 %}
+
+                                <div class="division-card">
+
+                                    <div class="division-name">
+                                        {{ division.name }}
+                                    </div>
+
+                                    <div class="manager-row">
+
+                                        <div class="manager-label">
+                                            Division Incharge
+                                        </div>
+
+                                        {% if division.manager_name %}
+
+                                            <div class="manager-name">
+                                                {{ division.manager_name }}
+                                            </div>
+
+                                            <div class="manager-detail">
+                                                {{ division.responsibility_type }}
+                                                · PIN {{ division.manager_pin }}
+                                            </div>
+
+                                        {% else %}
+
+                                            <div class="vacant">
+                                                Manager not assigned
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                    <div class="sections-title">
+                                        Sections
+                                    </div>
+
+                                    {% set section_counter =
+                                        namespace(count=0) %}
+
+                                    {% for section in sections %}
+
+                                        {% if section.division_id ==
+                                            division.id %}
+
+                                            {% set section_counter.count =
+                                                section_counter.count + 1 %}
+
+                                            <div class="section-item">
+
+                                                <div class="section-name">
+                                                    {{ section.name }}
+                                                </div>
+
+                                                {% if section.head_name %}
+
+                                                    <div class="head-detail">
+                                                        Head:
+                                                        {{ section.head_name }}
+                                                        · PIN
+                                                        {{ section.head_pin }}
+                                                    </div>
+
+                                                {% else %}
+
+                                                    <div class="head-detail vacant">
+                                                        Head not assigned
+                                                    </div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    {% endfor %}
+
+                                    {% if section_counter.count == 0 %}
+
+                                        <div class="empty-message">
+                                            No active Sections
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                        {% if pm_divisions.count == 0 %}
+
+                            <div class="empty-message">
+                                No Divisions currently report to PM.
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <!-- UNDER DPM -->
+
+                <div class="authority-group">
+
+                    <div class="group-header dpm">
+
+                        <div class="group-label">
+                            Reports To
+                        </div>
+
+                        <h3>Deputy Plant Manager</h3>
+
+                    </div>
+
+                    <div class="division-list">
+
+                        {% set dpm_divisions = namespace(count=0) %}
+
+                        {% for division in divisions %}
+
+                            {% if division.authority_post_name ==
+                                "Deputy Plant Manager" %}
+
+                                {% set dpm_divisions.count =
+                                    dpm_divisions.count + 1 %}
+
+                                <div class="division-card">
+
+                                    <div class="division-name">
+                                        {{ division.name }}
+                                    </div>
+
+                                    <div class="manager-row">
+
+                                        <div class="manager-label">
+                                            Division Incharge
+                                        </div>
+
+                                        {% if division.manager_name %}
+
+                                            <div class="manager-name">
+                                                {{ division.manager_name }}
+                                            </div>
+
+                                            <div class="manager-detail">
+                                                {{ division.responsibility_type }}
+                                                · PIN {{ division.manager_pin }}
+                                            </div>
+
+                                        {% else %}
+
+                                            <div class="vacant">
+                                                Manager not assigned
+                                            </div>
+
+                                        {% endif %}
+
+                                    </div>
+
+                                    <div class="sections-title">
+                                        Sections
+                                    </div>
+
+                                    {% set section_counter =
+                                        namespace(count=0) %}
+
+                                    {% for section in sections %}
+
+                                        {% if section.division_id ==
+                                            division.id %}
+
+                                            {% set section_counter.count =
+                                                section_counter.count + 1 %}
+
+                                            <div class="section-item">
+
+                                                <div class="section-name">
+                                                    {{ section.name }}
+                                                </div>
+
+                                                {% if section.head_name %}
+
+                                                    <div class="head-detail">
+                                                        Head:
+                                                        {{ section.head_name }}
+                                                        · PIN
+                                                        {{ section.head_pin }}
+                                                    </div>
+
+                                                {% else %}
+
+                                                    <div class="head-detail vacant">
+                                                        Head not assigned
+                                                    </div>
+
+                                                {% endif %}
+
+                                            </div>
+
+                                        {% endif %}
+
+                                    {% endfor %}
+
+                                    {% if section_counter.count == 0 %}
+
+                                        <div class="empty-message">
+                                            No active Sections
+                                        </div>
+
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                        {% if dpm_divisions.count == 0 %}
+
+                            <div class="empty-message">
+                                No Divisions currently report to DPM.
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- DIVISIONS WITHOUT REPORTING AUTHORITY -->
+
+        {% set unassigned_divisions = namespace(count=0) %}
+
+        {% for division in divisions %}
+
+            {% if not division.authority_post_name %}
+
+                {% set unassigned_divisions.count =
+                    unassigned_divisions.count + 1 %}
+
+            {% endif %}
+
+        {% endfor %}
+
+
+        {% if unassigned_divisions.count > 0 %}
+
+            <section class="panel unassigned-panel">
+
+                <div class="section-heading">
+
+                    <h2>Reporting Authority Required</h2>
+
+                    <p>
+                        These active Divisions do not currently have an
+                        SD, PM or DPM reporting assignment.
+                    </p>
+
+                </div>
+
+                <div class="unassigned-list">
+
+                    {% for division in divisions %}
+
+                        {% if not division.authority_post_name %}
+
+                            <div class="unassigned-item">
+
+                                <strong>
+                                    {{ division.name }}
+                                </strong>
+
+                                <span>
+                                    Reporting authority not assigned
+                                </span>
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </div>
+
+            </section>
+
+        {% endif %}
+
+
+        <!-- OFFICES -->
+
+        <section class="panel">
+
+            <div class="section-heading">
+
+                <h2>Administrative Offices</h2>
+
+                <p>
+                    Active Offices are displayed separately from operational
+                    Divisions and Sections.
+                </p>
+
+            </div>
+
+            {% if offices %}
+
+                <div class="office-grid">
+
+                    {% for office in offices %}
+
+                        <div class="office-card">
+
+                            <div class="office-name">
+                                {{ office.name }}
+                            </div>
+
+                            <div class="office-parent">
+
+                                {% if office.parent_name %}
+
+                                    Parent:
+                                    {{ office.parent_name }}
+                                    ({{ office.parent_type }})
+
+                                {% else %}
+
+                                    No parent unit assigned
+
+                                {% endif %}
+
+                            </div>
+
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <div class="empty-message">
+                    No active Offices found.
+                </div>
+
+            {% endif %}
+
+        </section>
+
+
+        <div class="page-note">
+
+            <strong>Live hierarchy:</strong>
+
+            Historical assignment records remain preserved and are managed from
+their respective administration screens.
+
+        </div>
+
+    </main>
+
+</body>
+
+</html>

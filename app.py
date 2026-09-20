@@ -27,6 +27,154 @@ def cd_dvd():
 def admin_dashboard():
     return render_template("admin.html")
 
+# =================================================
+# ORGANIZATION HIERARCHY
+# =================================================
+
+@app.route("/admin/organization-hierarchy")
+def organization_hierarchy():
+
+    connection = get_db_connection()
+
+    # Organization ke top-level active post holders.
+    top_authorities = connection.execute("""
+        SELECT
+            posts.name AS post_name,
+            employees.pin,
+            employees.name AS employee_name
+        FROM posts
+
+        LEFT JOIN employee_post_assignments
+            ON employee_post_assignments.post_id = posts.id
+           AND employee_post_assignments.is_active = 1
+
+        LEFT JOIN employees
+            ON employee_post_assignments.employee_id = employees.id
+           AND employees.is_active = 1
+
+        WHERE posts.is_active = 1
+          AND posts.name IN (
+                'Senior Director',
+                'Plant Manager',
+                'Deputy Plant Manager',
+                'HLAO',
+                'Principal Administrator'
+          )
+
+        ORDER BY CASE posts.name
+            WHEN 'Senior Director' THEN 1
+            WHEN 'Plant Manager' THEN 2
+            WHEN 'Deputy Plant Manager' THEN 3
+            WHEN 'HLAO' THEN 4
+            WHEN 'Principal Administrator' THEN 5
+            ELSE 6
+        END
+    """).fetchall()
+
+    # Har active Division ki reporting authority aur current management.
+    divisions = connection.execute("""
+        SELECT
+            division.id,
+            division.name,
+
+            authority_post.name AS authority_post_name,
+
+            management.responsibility_type,
+            manager.pin AS manager_pin,
+            manager.name AS manager_name
+
+        FROM organizational_units AS division
+
+        LEFT JOIN division_reporting_assignments AS reporting
+            ON reporting.division_id = division.id
+           AND reporting.is_active = 1
+
+        LEFT JOIN posts AS authority_post
+            ON reporting.authority_post_id = authority_post.id
+
+        LEFT JOIN division_management_assignments AS management
+            ON management.division_id = division.id
+           AND management.is_active = 1
+
+        LEFT JOIN employees AS manager
+            ON management.employee_id = manager.id
+
+        WHERE division.unit_type = 'Division'
+          AND division.is_active = 1
+
+        ORDER BY
+            CASE authority_post.name
+                WHEN 'Senior Director' THEN 1
+                WHEN 'Plant Manager' THEN 2
+                WHEN 'Deputy Plant Manager' THEN 3
+                ELSE 4
+            END,
+            division.name
+    """).fetchall()
+
+    # Har active Section aur uska current Head.
+    sections = connection.execute("""
+        SELECT
+            section.id,
+            section.name,
+            section.parent_id AS division_id,
+            division.name AS division_name,
+
+            head_employee.pin AS head_pin,
+            head_employee.name AS head_name
+
+        FROM organizational_units AS section
+
+        JOIN organizational_units AS division
+            ON section.parent_id = division.id
+           AND division.unit_type = 'Division'
+           AND division.is_active = 1
+
+        LEFT JOIN section_head_assignments AS head_assignment
+            ON head_assignment.section_id = section.id
+           AND head_assignment.is_active = 1
+
+        LEFT JOIN employees AS head_employee
+            ON head_assignment.employee_id = head_employee.id
+
+        WHERE section.unit_type = 'Section'
+          AND section.is_active = 1
+
+        ORDER BY
+            division.name,
+            section.name
+    """).fetchall()
+
+    # Active Offices aur unke parent units.
+    offices = connection.execute("""
+        SELECT
+            office.id,
+            office.name,
+            office.parent_id,
+            parent.name AS parent_name,
+            parent.unit_type AS parent_type
+
+        FROM organizational_units AS office
+
+        LEFT JOIN organizational_units AS parent
+            ON office.parent_id = parent.id
+
+        WHERE office.unit_type = 'Office'
+          AND office.is_active = 1
+
+        ORDER BY office.name
+    """).fetchall()
+
+    connection.close()
+
+    return render_template(
+        "organization_hierarchy.html",
+        top_authorities=top_authorities,
+        divisions=divisions,
+        sections=sections,
+        offices=offices
+    )
+
 
 @app.route("/admin/units")
 def manage_units():
