@@ -1046,6 +1046,9 @@ def manage_division_reporting_authority(division_id):
         connection.close()
         return "Division not found.", 404
 
+    # Division sirf do reporting paths mein se ek use karegi:
+    # 1. Directly Senior Director
+    # 2. Deputy Plant Manager ke through PM aur SD chain
     authority_posts = connection.execute("""
         SELECT
             id,
@@ -1053,15 +1056,13 @@ def manage_division_reporting_authority(division_id):
         FROM posts
         WHERE name IN (
             'Senior Director',
-            'Plant Manager',
             'Deputy Plant Manager'
         )
           AND is_active = 1
         ORDER BY
             CASE name
                 WHEN 'Senior Director' THEN 1
-                WHEN 'Plant Manager' THEN 2
-                WHEN 'Deputy Plant Manager' THEN 3
+                WHEN 'Deputy Plant Manager' THEN 2
             END
     """).fetchall()
 
@@ -1101,15 +1102,15 @@ def manage_division_reporting_authority(division_id):
             connection.close()
 
             return (
-                "Please select Senior Director, Plant Manager "
-                "or Deputy Plant Manager.",
+                "Please select Senior Director or "
+                "Deputy Plant Manager.",
                 400
             )
 
-        authority_post_id = int(
-            authority_post_id_value
-        )
+        authority_post_id = int(authority_post_id_value)
 
+        # Backend validation browser form ko bypass karne par bhi
+        # Plant Manager ya koi doosra post accept nahi karegi.
         selected_authority = connection.execute("""
             SELECT
                 id,
@@ -1118,7 +1119,6 @@ def manage_division_reporting_authority(division_id):
             WHERE id = ?
               AND name IN (
                   'Senior Director',
-                  'Plant Manager',
                   'Deputy Plant Manager'
               )
               AND is_active = 1
@@ -1126,7 +1126,11 @@ def manage_division_reporting_authority(division_id):
 
         if selected_authority is None:
             connection.close()
-            return "The selected reporting authority is invalid.", 400
+
+            return (
+                "The selected reporting authority is invalid.",
+                400
+            )
 
         # Same authority dobara select ho to duplicate history na banayein.
         if (
@@ -1139,7 +1143,7 @@ def manage_division_reporting_authority(division_id):
 
         try:
 
-            # Purani current reporting relationship close karein.
+            # Purani current reporting relationship history mein close karein.
             connection.execute("""
                 UPDATE division_reporting_assignments
                 SET is_active = 0,
@@ -1151,7 +1155,7 @@ def manage_division_reporting_authority(division_id):
                   AND is_active = 1
             """, (division_id,))
 
-            # New reporting authority assign karein.
+            # Nayi reporting authority current assignment banegi.
             connection.execute("""
                 INSERT INTO division_reporting_assignments
                 (
@@ -1209,7 +1213,6 @@ def manage_division_reporting_authority(division_id):
         current_assignment=current_assignment,
         reporting_history=reporting_history
     )
-
 # =================================================
 # DIVISION MANAGER / ACTING MANAGER
 # =================================================

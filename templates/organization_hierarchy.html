@@ -877,35 +877,139 @@
         </section>
 
 
-        <!-- DIVISIONS BY REPORTING AUTHORITY -->
+                <!-- DIVISIONS BY REPORTING PATH -->
+
+        {% macro division_card(division, sections) %}
+
+            <div class="division-card">
+
+                <div class="division-name">
+                    {{ division.name }}
+                </div>
+
+                <div class="manager-row">
+
+                    <div class="manager-label">
+                        Division Incharge
+                    </div>
+
+                    {% if division.manager_name %}
+
+                        <div class="manager-name">
+                            {{ division.manager_name }}
+                        </div>
+
+                        <div class="manager-detail">
+                            {{ division.responsibility_type }}
+                            · PIN {{ division.manager_pin }}
+                        </div>
+
+                    {% else %}
+
+                        <div class="vacant">
+                            Manager not assigned
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+                <div class="sections-title">
+                    Sections
+                </div>
+
+                {% set section_counter = namespace(count=0) %}
+
+                {% for section in sections %}
+
+                    {% if section.division_id == division.id %}
+
+                        {% set section_counter.count =
+                            section_counter.count + 1 %}
+
+                        <div class="section-item">
+
+                            <div class="section-name">
+                                {{ section.name }}
+                            </div>
+
+                            {% if section.head_name %}
+
+                                <div class="head-detail">
+                                    Head: {{ section.head_name }}
+                                    · PIN {{ section.head_pin }}
+                                </div>
+
+                            {% else %}
+
+                                <div class="head-detail vacant">
+                                    Head not assigned
+                                </div>
+
+                            {% endif %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% endfor %}
+
+                {% if section_counter.count == 0 %}
+
+                    <div class="empty-message">
+                        No active Sections
+                    </div>
+
+                {% endif %}
+
+            </div>
+
+        {% endmacro %}
+
 
         <section class="panel">
 
             <div class="section-heading">
 
-                <h2>Divisions by Reporting Authority</h2>
+                <h2>Divisions by Reporting Path</h2>
 
                 <p>
-                    Each Division displays its current reporting authority,
-                    Manager or Acting Manager, and active Sections.
+                    Reporting path and organizational rank are displayed
+                    separately. Divisions reporting directly to the Senior
+                    Director do not become equal in rank to the Plant Manager
+                    or Deputy Plant Manager.
                 </p>
 
             </div>
 
 
-            <div class="authority-groups">
+            <div
+                class="authority-groups"
+                style="grid-template-columns: repeat(2, minmax(0, 1fr));"
+            >
 
-                <!-- DIRECTLY UNDER SD -->
+                <!-- DIRECTLY UNDER SENIOR DIRECTOR -->
 
                 <div class="authority-group">
 
                     <div class="group-header">
 
                         <div class="group-label">
-                            Reports Directly To
+                            Direct Reporting Path
                         </div>
 
                         <h3>Senior Director</h3>
+
+                        <div
+                            style="
+                                margin-top: 8px;
+                                color: #dbeafe;
+                                font-size: 13px;
+                                line-height: 1.5;
+                            "
+                        >
+                            Selected Divisions report directly to SD.
+                        </div>
 
                     </div>
 
@@ -915,97 +1019,13 @@
 
                         {% for division in divisions %}
 
-                            {% if division.authority_post_name == "Senior Director" %}
+                            {% if division.authority_post_name ==
+                                "Senior Director" %}
 
                                 {% set sd_divisions.count =
                                     sd_divisions.count + 1 %}
 
-                                <div class="division-card">
-
-                                    <div class="division-name">
-                                        {{ division.name }}
-                                    </div>
-
-                                    <div class="manager-row">
-
-                                        <div class="manager-label">
-                                            Division Incharge
-                                        </div>
-
-                                        {% if division.manager_name %}
-
-                                            <div class="manager-name">
-                                                {{ division.manager_name }}
-                                            </div>
-
-                                            <div class="manager-detail">
-                                                {{ division.responsibility_type }}
-                                                · PIN {{ division.manager_pin }}
-                                            </div>
-
-                                        {% else %}
-
-                                            <div class="vacant">
-                                                Manager not assigned
-                                            </div>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                    <div class="sections-title">
-                                        Sections
-                                    </div>
-
-                                    {% set section_counter =
-                                        namespace(count=0) %}
-
-                                    {% for section in sections %}
-
-                                        {% if section.division_id ==
-                                            division.id %}
-
-                                            {% set section_counter.count =
-                                                section_counter.count + 1 %}
-
-                                            <div class="section-item">
-
-                                                <div class="section-name">
-                                                    {{ section.name }}
-                                                </div>
-
-                                                {% if section.head_name %}
-
-                                                    <div class="head-detail">
-                                                        Head:
-                                                        {{ section.head_name }}
-                                                        · PIN
-                                                        {{ section.head_pin }}
-                                                    </div>
-
-                                                {% else %}
-
-                                                    <div class="head-detail vacant">
-                                                        Head not assigned
-                                                    </div>
-
-                                                {% endif %}
-
-                                            </div>
-
-                                        {% endif %}
-
-                                    {% endfor %}
-
-                                    {% if section_counter.count == 0 %}
-
-                                        <div class="empty-message">
-                                            No active Sections
-                                        </div>
-
-                                    {% endif %}
-
-                                </div>
+                                {{ division_card(division, sections) }}
 
                             {% endif %}
 
@@ -1014,7 +1034,8 @@
                         {% if sd_divisions.count == 0 %}
 
                             <div class="empty-message">
-                                No Divisions currently report directly to SD.
+                                No Divisions currently report directly
+                                to the Senior Director.
                             </div>
 
                         {% endif %}
@@ -1024,256 +1045,126 @@
                 </div>
 
 
-                <!-- UNDER PM -->
+                <!-- DPM, PM AND SD AUTHORITY CHAIN -->
 
                 <div class="authority-group">
 
                     <div class="group-header pm">
 
                         <div class="group-label">
-                            Reports To
+                            Senior Authority Chain
                         </div>
 
                         <h3>Plant Manager</h3>
 
-                    </div>
-
-                    <div class="division-list">
-
-                        {% set pm_divisions = namespace(count=0) %}
-
-                        {% for division in divisions %}
-
-                            {% if division.authority_post_name == "Plant Manager" %}
-
-                                {% set pm_divisions.count =
-                                    pm_divisions.count + 1 %}
-
-                                <div class="division-card">
-
-                                    <div class="division-name">
-                                        {{ division.name }}
-                                    </div>
-
-                                    <div class="manager-row">
-
-                                        <div class="manager-label">
-                                            Division Incharge
-                                        </div>
-
-                                        {% if division.manager_name %}
-
-                                            <div class="manager-name">
-                                                {{ division.manager_name }}
-                                            </div>
-
-                                            <div class="manager-detail">
-                                                {{ division.responsibility_type }}
-                                                · PIN {{ division.manager_pin }}
-                                            </div>
-
-                                        {% else %}
-
-                                            <div class="vacant">
-                                                Manager not assigned
-                                            </div>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                    <div class="sections-title">
-                                        Sections
-                                    </div>
-
-                                    {% set section_counter =
-                                        namespace(count=0) %}
-
-                                    {% for section in sections %}
-
-                                        {% if section.division_id ==
-                                            division.id %}
-
-                                            {% set section_counter.count =
-                                                section_counter.count + 1 %}
-
-                                            <div class="section-item">
-
-                                                <div class="section-name">
-                                                    {{ section.name }}
-                                                </div>
-
-                                                {% if section.head_name %}
-
-                                                    <div class="head-detail">
-                                                        Head:
-                                                        {{ section.head_name }}
-                                                        · PIN
-                                                        {{ section.head_pin }}
-                                                    </div>
-
-                                                {% else %}
-
-                                                    <div class="head-detail vacant">
-                                                        Head not assigned
-                                                    </div>
-
-                                                {% endif %}
-
-                                            </div>
-
-                                        {% endif %}
-
-                                    {% endfor %}
-
-                                    {% if section_counter.count == 0 %}
-
-                                        <div class="empty-message">
-                                            No active Sections
-                                        </div>
-
-                                    {% endif %}
-
-                                </div>
-
-                            {% endif %}
-
-                        {% endfor %}
-
-                        {% if pm_divisions.count == 0 %}
-
-                            <div class="empty-message">
-                                No Divisions currently report to PM.
-                            </div>
-
-                        {% endif %}
-
-                    </div>
-
-                </div>
-
-
-                <!-- UNDER DPM -->
-
-                <div class="authority-group">
-
-                    <div class="group-header dpm">
-
-                        <div class="group-label">
-                            Reports To
+                        <div
+                            style="
+                                margin: 8px 0;
+                                color: #dbeafe;
+                                font-size: 20px;
+                                font-weight: 800;
+                                text-align: center;
+                            "
+                        >
+                            ↓
                         </div>
 
-                        <h3>Deputy Plant Manager</h3>
+                        <div
+                            style="
+                                padding: 10px 12px;
+                                border: 1px solid rgba(255, 255, 255, 0.35);
+                                border-radius: 8px;
+                                background-color: rgba(0, 124, 131, 0.35);
+                            "
+                        >
+
+                            <div
+                                style="
+                                    color: #ccfbf1;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    letter-spacing: 1px;
+                                    text-transform: uppercase;
+                                "
+                            >
+                                Immediate Reporting Authority
+                            </div>
+
+                            <div
+                                style="
+                                    margin-top: 4px;
+                                    font-size: 19px;
+                                    font-weight: 800;
+                                "
+                            >
+                                Deputy Plant Manager
+                            </div>
+
+                        </div>
+
+                        <div
+                            style="
+                                margin-top: 10px;
+                                color: #dbeafe;
+                                font-size: 13px;
+                                line-height: 1.5;
+                            "
+                        >
+                            Divisions report to DPM, DPM reports to PM,
+                            and PM reports to SD.
+                        </div>
 
                     </div>
 
                     <div class="division-list">
 
-                        {% set dpm_divisions = namespace(count=0) %}
+                        {% set chain_divisions = namespace(count=0) %}
 
                         {% for division in divisions %}
 
-                            {% if division.authority_post_name ==
-                                "Deputy Plant Manager" %}
+                            {% if division.authority_post_name in
+                                (
+                                    "Deputy Plant Manager",
+                                    "Plant Manager"
+                                )
+                            %}
 
-                                {% set dpm_divisions.count =
-                                    dpm_divisions.count + 1 %}
+                                {% set chain_divisions.count =
+                                    chain_divisions.count + 1 %}
 
-                                <div class="division-card">
+                                {{ division_card(division, sections) }}
 
-                                    <div class="division-name">
-                                        {{ division.name }}
+                                {% if division.authority_post_name ==
+                                    "Plant Manager" %}
+
+                                    <div
+                                        style="
+                                            margin: -7px 0 15px;
+                                            padding: 9px 11px;
+                                            border: 1px solid #fed7aa;
+                                            border-radius: 7px;
+                                            background-color: #fff7ed;
+                                            color: #b45309;
+                                            font-size: 12px;
+                                            font-weight: 700;
+                                        "
+                                    >
+                                        Legacy direct-PM assignment:
+                                        update this Division to Deputy
+                                        Plant Manager from the Units page.
                                     </div>
 
-                                    <div class="manager-row">
-
-                                        <div class="manager-label">
-                                            Division Incharge
-                                        </div>
-
-                                        {% if division.manager_name %}
-
-                                            <div class="manager-name">
-                                                {{ division.manager_name }}
-                                            </div>
-
-                                            <div class="manager-detail">
-                                                {{ division.responsibility_type }}
-                                                · PIN {{ division.manager_pin }}
-                                            </div>
-
-                                        {% else %}
-
-                                            <div class="vacant">
-                                                Manager not assigned
-                                            </div>
-
-                                        {% endif %}
-
-                                    </div>
-
-                                    <div class="sections-title">
-                                        Sections
-                                    </div>
-
-                                    {% set section_counter =
-                                        namespace(count=0) %}
-
-                                    {% for section in sections %}
-
-                                        {% if section.division_id ==
-                                            division.id %}
-
-                                            {% set section_counter.count =
-                                                section_counter.count + 1 %}
-
-                                            <div class="section-item">
-
-                                                <div class="section-name">
-                                                    {{ section.name }}
-                                                </div>
-
-                                                {% if section.head_name %}
-
-                                                    <div class="head-detail">
-                                                        Head:
-                                                        {{ section.head_name }}
-                                                        · PIN
-                                                        {{ section.head_pin }}
-                                                    </div>
-
-                                                {% else %}
-
-                                                    <div class="head-detail vacant">
-                                                        Head not assigned
-                                                    </div>
-
-                                                {% endif %}
-
-                                            </div>
-
-                                        {% endif %}
-
-                                    {% endfor %}
-
-                                    {% if section_counter.count == 0 %}
-
-                                        <div class="empty-message">
-                                            No active Sections
-                                        </div>
-
-                                    {% endif %}
-
-                                </div>
+                                {% endif %}
 
                             {% endif %}
 
                         {% endfor %}
 
-                        {% if dpm_divisions.count == 0 %}
+                        {% if chain_divisions.count == 0 %}
 
                             <div class="empty-message">
-                                No Divisions currently report to DPM.
+                                No Divisions currently use the
+                                DPM → PM → SD reporting chain.
                             </div>
 
                         {% endif %}
@@ -1285,7 +1176,6 @@
             </div>
 
         </section>
-
 
         <!-- DIVISIONS WITHOUT REPORTING AUTHORITY -->
 
@@ -1312,8 +1202,8 @@
                     <h2>Reporting Authority Required</h2>
 
                     <p>
-                        These active Divisions do not currently have an
-                        SD, PM or DPM reporting assignment.
+                        These active Divisions do not currently have a valid
+Senior Director or Deputy Plant Manager reporting path.
                     </p>
 
                 </div>

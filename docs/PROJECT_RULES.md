@@ -13,30 +13,49 @@ The system must preserve historical records and provide a professional UI.
 
 ## 2. Organizational Authority Hierarchy
 
-The authority hierarchy is:
+The senior authority hierarchy is:
 
 1. Senior Director (SD)
 2. Plant Manager (PM)
 3. Deputy Plant Manager (DPM)
 
-Senior Director is the highest authority.
+Senior Director is the highest organizational authority.
 
 Plant Manager reports to Senior Director.
 
 Deputy Plant Manager reports to Plant Manager.
 
-Divisions are not permanently hardcoded under these authorities.
+Plant Manager remains senior to Deputy Plant Manager and must always be
+displayed prominently in the authority hierarchy.
 
-An administrator can change a Division's reporting authority to:
+A Division can use one of the following two reporting paths:
+
+1. Direct reporting path:
+
+   Division → Senior Director
+
+2. PM/DPM authority chain:
+
+   Division → Deputy Plant Manager → Plant Manager → Senior Director
+
+A Division in the PM/DPM authority chain reports immediately to the Deputy
+Plant Manager. The Deputy Plant Manager reports to the Plant Manager, and the
+Plant Manager reports to the Senior Director.
+
+Plant Manager must not be available as a separate direct Division reporting
+option. For current assignments, an administrator may select only:
 
 - Senior Director
-- Plant Manager
 - Deputy Plant Manager
 
-Example:
+A Division reporting directly to the Senior Director does not become equal in
+rank to the Plant Manager or Deputy Plant Manager. Reporting path and
+organizational rank are separate concepts.
 
-A Division currently reporting to Plant Manager may later be moved directly
-under Senior Director.
+Historical records may continue showing Plant Manager as a former direct
+reporting authority if that relationship existed previously. Such records must
+remain preserved, while any active legacy direct-PM assignment should be ended
+and replaced with a Deputy Plant Manager assignment.
 
 Every reporting change must preserve history with effective start and end dates.
 
