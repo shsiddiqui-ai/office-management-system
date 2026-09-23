@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Login | Office Management System</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background:
+                linear-gradient(
+                    135deg,
+                    #111827 0%,
+                    #1f2937 45%,
+                    #2563eb 100%
+                );
+            color: #1f2937;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+
+        .login-wrapper {
+            width: 100%;
+            max-width: 980px;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            overflow: hidden;
+            background-color: white;
+            border-radius: 18px;
+            box-shadow:
+                0 25px 60px rgba(0, 0, 0, 0.28);
+        }
+
+        .information-panel {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 570px;
+            padding: 58px 50px;
+            overflow: hidden;
+            background:
+                linear-gradient(
+                    150deg,
+                    #172033 0%,
+                    #1e3a5f 58%,
+                    #2563eb 100%
+                );
+            color: white;
+        }
+
+        .information-panel::before {
+            content: "";
+            position: absolute;
+            top: -120px;
+            right: -110px;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.07);
+        }
+
+        .information-panel::after {
+            content: "";
+            position: absolute;
+            bottom: -150px;
+            left: -130px;
+            width: 360px;
+            height: 360px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .brand,
+        .information-content,
+        .security-note {
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .brand-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 13px;
+            background-color: rgba(255, 255, 255, 0.12);
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .brand-name {
+            font-size: 17px;
+            font-weight: bold;
+            letter-spacing: 0.02em;
+        }
+
+        .brand-caption {
+            margin-top: 4px;
+            color: #bfdbfe;
+            font-size: 12px;
+        }
+
+        .information-content h1 {
+            max-width: 420px;
+            margin: 0 0 18px;
+            font-size: 38px;
+            line-height: 1.16;
+        }
+
+        .information-content p {
+            max-width: 440px;
+            margin: 0;
+            color: #dbeafe;
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .security-note {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #bfdbfe;
+            font-size: 13px;
+        }
+
+        .security-dot {
+            width: 9px;
+            height: 9px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            background-color: #4ade80;
+            box-shadow: 0 0 0 5px rgba(74, 222, 128, 0.12);
+        }
+
+        .form-panel {
+            display: flex;
+            align-items: center;
+            padding: 55px 48px;
+            background-color: #ffffff;
+        }
+
+        .form-container {
+            width: 100%;
+        }
+
+        .form-heading {
+            margin-bottom: 30px;
+        }
+
+        .form-heading h2 {
+            margin: 0 0 9px;
+            color: #111827;
+            font-size: 29px;
+        }
+
+        .form-heading p {
+            margin: 0;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .alert {
+            margin-bottom: 19px;
+            padding: 12px 14px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .alert-error,
+        .alert-danger {
+            border-color: #fecaca;
+            background-color: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .alert-warning {
+            border-color: #fde68a;
+            background-color: #fffbeb;
+            color: #92400e;
+        }
+
+        .alert-success {
+            border-color: #bbf7d0;
+            background-color: #f0fdf4;
+            color: #15803d;
+        }
+
+        .alert-info,
+        .alert-message {
+            border-color: #bfdbfe;
+            background-color: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            color: #6b7280;
+            font-size: 15px;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 13px 43px 13px 42px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #111827;
+            font-size: 15px;
+            transition:
+                border-color 0.2s,
+                box-shadow 0.2s;
+        }
+
+        .form-control::placeholder {
+            color: #9ca3af;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            padding: 6px;
+            border: none;
+            background: transparent;
+            color: #4b5563;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transform: translateY(-50%);
+        }
+
+        .password-toggle:hover {
+            color: #2563eb;
+        }
+
+        .password-toggle:focus {
+            outline: 2px solid #93c5fd;
+            border-radius: 4px;
+        }
+
+        .login-button {
+            width: 100%;
+            margin-top: 5px;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 8px;
+            background-color: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            transition:
+                background-color 0.2s,
+                transform 0.1s;
+        }
+
+        .login-button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .login-button:active {
+            transform: translateY(1px);
+        }
+
+        .login-button:focus {
+            outline: 3px solid rgba(37, 99, 235, 0.25);
+            outline-offset: 2px;
+        }
+
+        .access-note {
+            margin: 24px 0 0;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+            font-size: 12px;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        @media (max-width: 820px) {
+
+            .login-wrapper {
+                max-width: 500px;
+                grid-template-columns: 1fr;
+            }
+
+            .information-panel {
+                min-height: auto;
+                padding: 32px;
+            }
+
+            .information-content {
+                margin: 45px 0;
+            }
+
+            .information-content h1 {
+                font-size: 30px;
+            }
+
+            .form-panel {
+                padding: 42px 32px;
+            }
+
+        }
+
+        @media (max-width: 480px) {
+
+            .page {
+                padding: 15px;
+            }
+
+            .information-panel,
+            .form-panel {
+                padding: 28px 22px;
+            }
+
+            .information-content {
+                margin: 35px 0;
+            }
+
+            .information-content h1 {
+                font-size: 26px;
+            }
+
+            .form-heading h2 {
+                font-size: 25px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <main class="page">
+
+        <div class="login-wrapper">
+
+            <section class="information-panel">
+
+                <div class="brand">
+
+                    <div class="brand-icon">
+                        OM
+                    </div>
+
+                    <div>
+
+                        <div class="brand-name">
+                            Office Management System
+                        </div>
+
+                        <div class="brand-caption">
+                            Secure Internal Access
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="information-content">
+
+                    <h1>
+                        One secure place for office operations.
+                    </h1>
+
+                    <p>
+                        Sign in with your employee PIN to access
+                        the dashboard and authorized office
+                        management services.
+                    </p>
+
+                </div>
+
+
+                <div class="security-note">
+
+                    <span class="security-dot"></span>
+
+                    Authorized personnel only
+
+                </div>
+
+            </section>
+
+
+            <section class="form-panel">
+
+                <div class="form-container">
+
+                    <div class="form-heading">
+
+                        <h2>Welcome back</h2>
+
+                        <p>
+                            Enter your employee PIN and password
+                            to continue.
+                        </p>
+
+                    </div>
+
+
+                    {% with messages = get_flashed_messages(
+                        with_categories=true
+                    ) %}
+
+                        {% if messages %}
+
+                            {% for category, message in messages %}
+
+                                <div
+                                    class="alert alert-{{ category }}"
+                                    role="alert"
+                                >
+                                    {{ message }}
+                                </div>
+
+                            {% endfor %}
+
+                        {% endif %}
+
+                    {% endwith %}
+
+
+                    {% if error %}
+
+    <div
+        class="alert alert-error"
+        role="alert"
+    >
+        {{ error }}
+    </div>
+
+{% endif %}
+
+                    
+                    <form method="POST" action="/login">
+
+                        <div class="form-group">
+
+                            <label for="pin">
+                                Employee PIN
+                            </label>
+
+                            <div class="input-wrapper">
+
+                                <span class="input-icon">
+                                    #
+                                </span>
+
+                                <input
+                                    type="text"
+                                    id="pin"
+                                    name="pin"
+                                    class="form-control"
+                                    placeholder="Enter your PIN"
+                                    inputmode="numeric"
+                                    autocomplete="username"
+                                    maxlength="20"
+                                    required
+                                    autofocus
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="password">
+                                Password
+                            </label>
+
+                            <div class="input-wrapper">
+
+                                <span class="input-icon">
+                                    ●
+                                </span>
+
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    class="form-control"
+                                    placeholder="Enter your password"
+                                    autocomplete="current-password"
+                                    required
+                                >
+
+                                <button
+                                    type="button"
+                                    class="password-toggle"
+                                    id="password-toggle"
+                                    aria-label="Show password"
+                                    aria-pressed="false"
+                                >
+                                    Show
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        <button
+                            type="submit"
+                            class="login-button"
+                        >
+                            Sign In
+                        </button>
+
+                    </form>
+
+
+                    <p class="access-note">
+                        Login activity is monitored for security.
+                        Contact the system administrator if you
+                        cannot access your account.
+                    </p>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <script>
+
+        const passwordInput =
+            document.getElementById("password");
+
+        const passwordToggle =
+            document.getElementById("password-toggle");
+
+        passwordToggle.addEventListener("click", function () {
+
+            const passwordIsHidden =
+                passwordInput.type === "password";
+
+            passwordInput.type =
+                passwordIsHidden ? "text" : "password";
+
+            passwordToggle.textContent =
+                passwordIsHidden ? "Hide" : "Show";
+
+            passwordToggle.setAttribute(
+                "aria-label",
+                passwordIsHidden
+                    ? "Hide password"
+                    : "Show password"
+            );
+
+            passwordToggle.setAttribute(
+                "aria-pressed",
+                passwordIsHidden ? "true" : "false"
+            );
+
+        });
+
+    </script>
+
+</body>
+
+</html>

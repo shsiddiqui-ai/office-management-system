@@ -1,7 +1,86 @@
-from flask import Flask, render_template, request, redirect
+import os
+import secrets
 import sqlite3
 
-app = Flask(__name__)
+from datetime import timedelta
+
+import click
+
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    session
+)
+
+from werkzeug.security import (
+    check_password_hash,
+    generate_password_hash
+)
+
+
+app = Flask(
+    __name__,
+    instance_relative_config=True
+)
+
+
+# =================================================
+# SECURE SESSION CONFIGURATION
+# =================================================
+
+# Local instance folder GitHub par upload nahi hoga.
+os.makedirs(
+    app.instance_path,
+    exist_ok=True
+)
+
+secret_key_file = os.path.join(
+    app.instance_path,
+    "secret_key"
+)
+
+# Production/LAN server par environment variable ko priority milegi.
+secret_key = os.environ.get("OMS_SECRET_KEY")
+
+# Environment variable na ho to local secret file use hogi.
+if not secret_key:
+
+    if os.path.exists(secret_key_file):
+
+        with open(
+            secret_key_file,
+            "r",
+            encoding="utf-8"
+        ) as file:
+
+            secret_key = file.read().strip()
+
+    else:
+
+        secret_key = secrets.token_hex(32)
+
+        with open(
+            secret_key_file,
+            "w",
+            encoding="utf-8"
+        ) as file:
+
+            file.write(secret_key)
+
+
+app.config.update(
+    SECRET_KEY=secret_key,
+
+    SESSION_COOKIE_HTTPONLY=True,
+
+    SESSION_COOKIE_SAMESITE="Lax",
+
+    PERMANENT_SESSION_LIFETIME=timedelta(
+        minutes=30
+    )
+)
 
 
 def get_db_connection():
@@ -12,6 +91,650 @@ def get_db_connection():
 
 def clean_name(value):
     return " ".join(value.strip().split())
+
+# =================================================
+# INITIAL SUPER ADMIN ACCOUNT
+# =================================================
+
+@app.cli.command("create-super-admin")
+@click.option(
+    "--pin",
+    prompt="Employee PIN"
+)
+def create_super_admin(pin):
+
+    pin = pin.strip()
+
+    if not pin or not pin.isdigit():
+
+        raise click.ClickException(
+            "Employee PIN must contain digits only."
+        )
+
+    connection = get_db_connection()
+
+    employee = connection.execute("""
+        SELECT
+            id,
+            pin,
+            name,
+            is_active
+        FROM employees
+        WHERE pin = ?
+    """, (pin,)).fetchone()
+
+    if employee is None:
+
+        connection.close()
+
+        raise click.ClickException(
+            "No employee exists with this PIN."
+        )
+
+    if employee["is_active"] == 0:
+
+        connection.close()
+
+        raise click.ClickException(
+            "An inactive employee cannot receive a login account."
+        )
+
+    existing_account = connection.execute("""
+        SELECT id
+        FROM user_accounts
+        WHERE employee_id = ?
+    """, (employee["id"],)).fetchone()
+
+    if existing_account is not None:
+
+        connection.close()
+
+        raise click.ClickException(
+            "This employee already has a user account."
+        )
+
+    super_admin_role = connection.execute("""
+        SELECT id
+        FROM system_roles
+        WHERE name = 'Super Admin'
+          AND is_active = 1
+    """).fetchone()
+
+    if super_admin_role is None:
+
+        connection.close()
+
+        raise click.ClickException(
+            "Super Admin role is missing from the database."
+        )
+
+    password = click.prompt(
+        "Temporary password",
+        hide_input=True,
+        confirmation_prompt=True
+    )
+
+    if len(password) < 12:
+
+        connection.close()
+
+        raise click.ClickException(
+            "Password must contain at least 12 characters."
+        )
+
+    password_hash = generate_password_hash(
+        password
+    )
+
+    try:
+
+        cursor = connection.execute("""
+            INSERT INTO user_accounts
+            (
+                employee_id,
+                password_hash,
+                must_change_password
+            )
+            VALUES (?, ?, 1)
+        """, (
+            employee["id"],
+            password_hash
+        ))
+
+        user_account_id = cursor.lastrowid
+
+        connection.execute("""
+            INSERT INTO user_role_assignments
+            (
+                user_account_id,
+                system_role_id,
+                assigned_by_user_account_id
+            )
+            VALUES (?, ?, NULL)
+        """, (
+            user_account_id,
+            super_admin_role["id"]
+        ))
+
+        connection.commit()
+
+    except sqlite3.IntegrityError as error:
+
+        connection.rollback()
+        connection.close()
+
+        raise click.ClickException(
+            f"Super Admin account could not be created: {error}"
+        )
+
+    connection.close()
+
+    click.echo(
+        "Super Admin account created successfully for "
+        f"{employee['name']} (PIN: {employee['pin']})."
+    )
+
+
+    # =================================================
+# RESET USER PASSWORD CLI COMMAND
+# =================================================
+
+@app.cli.command("reset-user-password")
+@click.option(
+    "--pin",
+    prompt="Employee PIN"
+)
+def reset_user_password(pin):
+
+    pin = pin.strip()
+
+    if not pin or not pin.isdigit():
+
+        raise click.ClickException(
+            "Employee PIN must contain digits only."
+        )
+
+    connection = get_db_connection()
+
+    account = connection.execute("""
+        SELECT
+            user_accounts.id AS user_account_id,
+            user_accounts.is_active AS account_is_active,
+
+            employees.pin,
+            employees.name AS employee_name,
+            employees.is_active AS employee_is_active
+
+        FROM user_accounts
+
+        JOIN employees
+            ON user_accounts.employee_id
+               = employees.id
+
+        WHERE employees.pin = ?
+    """, (pin,)).fetchone()
+
+    if account is None:
+
+        connection.close()
+
+        raise click.ClickException(
+            "No user account exists for this employee PIN."
+        )
+
+    if (
+        account["account_is_active"] == 0
+        or account["employee_is_active"] == 0
+    ):
+
+        connection.close()
+
+        raise click.ClickException(
+            "Password cannot be reset for an inactive account."
+        )
+
+    password = click.prompt(
+        "New temporary password",
+        hide_input=True,
+        confirmation_prompt=True
+    )
+
+    if len(password) < 12:
+
+        connection.close()
+
+        raise click.ClickException(
+            "Password must contain at least 12 characters."
+        )
+
+    password_hash = generate_password_hash(
+        password
+    )
+
+    connection.execute("""
+        UPDATE user_accounts
+
+        SET password_hash = ?,
+            must_change_password = 1,
+            failed_login_attempts = 0,
+            locked_until = NULL,
+            password_changed_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+
+        WHERE id = ?
+    """, (
+        password_hash,
+        account["user_account_id"]
+    ))
+
+    connection.commit()
+    connection.close()
+
+    click.echo(
+        "Password reset successfully for "
+        f"{account['employee_name']} "
+        f"(PIN: {account['pin']})."
+    )
+
+# =================================================
+# LOGIN / LOGOUT
+# =================================================
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    # Logged-in user ko login form dobara na dikhayein.
+    if session.get("user_account_id") is not None:
+        return redirect("/admin")
+
+    error = None
+
+    if request.method == "POST":
+
+        pin = request.form.get(
+            "pin",
+            ""
+        ).strip()
+
+        password = request.form.get(
+            "password",
+            ""
+        )
+
+        if not pin or not password:
+
+            error = "PIN and password are required."
+
+        elif not pin.isdigit():
+
+            error = "Invalid PIN or password."
+
+        else:
+
+            connection = get_db_connection()
+
+            account = connection.execute("""
+                SELECT
+                    user_accounts.id AS user_account_id,
+                    user_accounts.employee_id,
+                    user_accounts.password_hash,
+                    user_accounts.is_active
+                        AS account_is_active,
+                    user_accounts.must_change_password,
+                    user_accounts.failed_login_attempts,
+                    user_accounts.locked_until,
+
+                    employees.pin,
+                    employees.name AS employee_name,
+                    employees.is_active
+                        AS employee_is_active,
+
+                    CASE
+                        WHEN user_accounts.locked_until IS NOT NULL
+                         AND datetime(user_accounts.locked_until)
+                             > datetime('now')
+                        THEN 1
+                        ELSE 0
+                    END AS is_locked
+
+                FROM user_accounts
+
+                JOIN employees
+                    ON user_accounts.employee_id
+                       = employees.id
+
+                WHERE employees.pin = ?
+            """, (pin,)).fetchone()
+
+            if (
+                account is None
+                or account["account_is_active"] == 0
+                or account["employee_is_active"] == 0
+            ):
+
+                error = "Invalid PIN or password."
+
+            elif account["is_locked"] == 1:
+
+                error = (
+                    "This account is temporarily locked. "
+                    "Please try again after 15 minutes."
+                )
+
+            elif not check_password_hash(
+                account["password_hash"],
+                password
+            ):
+
+                failed_attempts = (
+                    account["failed_login_attempts"] + 1
+                )
+
+                if failed_attempts >= 5:
+
+                    connection.execute("""
+                        UPDATE user_accounts
+                        SET failed_login_attempts = 0,
+                            locked_until = datetime(
+                                'now',
+                                '+15 minutes'
+                            ),
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (
+                        account["user_account_id"],
+                    ))
+
+                    error = (
+                        "Too many failed attempts. "
+                        "This account is locked for 15 minutes."
+                    )
+
+                else:
+
+                    connection.execute("""
+                        UPDATE user_accounts
+                        SET failed_login_attempts = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (
+                        failed_attempts,
+                        account["user_account_id"]
+                    ))
+
+                    error = "Invalid PIN or password."
+
+                connection.commit()
+
+            else:
+
+                # Successful login par failed-attempt state reset hogi.
+                connection.execute("""
+                    UPDATE user_accounts
+                    SET failed_login_attempts = 0,
+                        locked_until = NULL,
+                        last_login_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (
+                    account["user_account_id"],
+                ))
+
+                connection.commit()
+
+                session.clear()
+                session.permanent = True
+
+                session["user_account_id"] = (
+                    account["user_account_id"]
+                )
+
+                session["employee_id"] = (
+                    account["employee_id"]
+                )
+
+                connection.close()
+
+                # Temporary password ko first login par change karna hoga.
+                if account["must_change_password"] == 1:
+                    return redirect("/change-password")
+
+                return redirect("/admin")
+
+            connection.close()
+
+    return render_template(
+        "login.html",
+        error=error
+    )
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+
+    session.clear()
+
+    return redirect("/login")
+
+
+# =================================================
+# CHANGE PASSWORD
+# =================================================
+
+@app.route(
+    "/change-password",
+    methods=["GET", "POST"]
+)
+def change_password():
+
+    user_account_id = session.get(
+        "user_account_id"
+    )
+
+    if user_account_id is None:
+        return redirect("/login")
+
+    connection = get_db_connection()
+
+    account = connection.execute("""
+        SELECT
+            user_accounts.id,
+            user_accounts.password_hash,
+            user_accounts.is_active
+                AS account_is_active,
+
+            employees.pin,
+            employees.name AS employee_name,
+            employees.is_active
+                AS employee_is_active
+
+        FROM user_accounts
+
+        JOIN employees
+            ON user_accounts.employee_id
+               = employees.id
+
+        WHERE user_accounts.id = ?
+    """, (user_account_id,)).fetchone()
+
+    if (
+        account is None
+        or account["account_is_active"] == 0
+        or account["employee_is_active"] == 0
+    ):
+
+        connection.close()
+        session.clear()
+
+        return redirect("/login")
+
+    error = None
+
+    if request.method == "POST":
+
+        current_password = request.form.get(
+            "current_password",
+            ""
+        )
+
+        new_password = request.form.get(
+            "new_password",
+            ""
+        )
+
+        confirm_password = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        if (
+            not current_password
+            or not new_password
+            or not confirm_password
+        ):
+
+            error = "All password fields are required."
+
+        elif not check_password_hash(
+            account["password_hash"],
+            current_password
+        ):
+
+            error = "Current password is incorrect."
+
+        elif len(new_password) < 12:
+
+            error = (
+                "New password must contain at least "
+                "12 characters."
+            )
+
+        elif new_password != confirm_password:
+
+            error = (
+                "New password and confirmation do not match."
+            )
+
+        elif check_password_hash(
+            account["password_hash"],
+            new_password
+        ):
+
+            error = (
+                "New password must be different from "
+                "the current password."
+            )
+
+        else:
+
+            new_password_hash = generate_password_hash(
+                new_password
+            )
+
+            connection.execute("""
+                UPDATE user_accounts
+                SET password_hash = ?,
+                    must_change_password = 0,
+                    failed_login_attempts = 0,
+                    locked_until = NULL,
+                    password_changed_at =
+                        CURRENT_TIMESTAMP,
+                    updated_at =
+                        CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                new_password_hash,
+                user_account_id
+            ))
+
+            connection.commit()
+            connection.close()
+
+            return redirect("/admin")
+
+    connection.close()
+
+    return render_template(
+        "change_password.html",
+        account=account,
+        error=error
+    )
+# =================================================
+# GLOBAL AUTHENTICATION PROTECTION
+# =================================================
+
+@app.before_request
+def enforce_authentication():
+
+    # Flask ko matching route na mile to normal 404 process hone dein.
+    if request.endpoint is None:
+        return None
+
+    # Login page aur static files login ke baghair available rahenge.
+    public_endpoints = {
+        "login",
+        "static"
+    }
+
+    if request.endpoint in public_endpoints:
+        return None
+
+    user_account_id = session.get(
+        "user_account_id"
+    )
+
+    # Session mein login account na ho to login page par bhejein.
+    if user_account_id is None:
+        return redirect("/login")
+
+    connection = get_db_connection()
+
+    account = connection.execute("""
+        SELECT
+            user_accounts.id,
+            user_accounts.is_active
+                AS account_is_active,
+            user_accounts.must_change_password,
+
+            employees.is_active
+                AS employee_is_active
+
+        FROM user_accounts
+
+        JOIN employees
+            ON user_accounts.employee_id
+               = employees.id
+
+        WHERE user_accounts.id = ?
+    """, (user_account_id,)).fetchone()
+
+    connection.close()
+
+    # Deleted, inactive ya invalid account ki session remove karein.
+    if (
+        account is None
+        or account["account_is_active"] == 0
+        or account["employee_is_active"] == 0
+    ):
+
+        session.clear()
+        return redirect("/login")
+
+    # Temporary password change kiye baghair
+    # kisi aur page par jane ki permission nahi hogi.
+    password_change_endpoints = {
+        "change_password",
+        "logout"
+    }
+
+    if (
+        account["must_change_password"] == 1
+        and request.endpoint
+            not in password_change_endpoints
+    ):
+        return redirect("/change-password")
+
+    return None
 
 @app.route("/")
 def home():
