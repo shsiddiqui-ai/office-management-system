@@ -13,53 +13,38 @@ The system must preserve historical records and provide a professional UI.
 
 ## 2. Organizational Authority Hierarchy
 
-The senior authority hierarchy is:
+Senior Director (SD) remains the top authority. All other authority reporting
+relationships are editable in the Admin reporting screen, with history.
 
-1. Senior Director (SD)
-2. Plant Manager (PM)
-3. Deputy Plant Manager (DPM)
+Current confirmed structure (05 October 2026):
 
-Senior Director is the highest organizational authority.
+| Reports to | Direct reports |
+| --- | --- |
+| SD | PM; Account, Admin, RM, CS&C, QC, SCS, GSD, ESD |
+| PM | DPM; Technical, HP & OS, QA, Store |
+| DPM | Chemical, ICD, Electrical, Mechanical, Operation |
 
-Plant Manager reports to Senior Director.
+CS&C has two Sections: CS&IT and C (Communication). Standalone IT Division
+is not part of the confirmed organization.
 
-Deputy Plant Manager reports to Plant Manager.
+Associate Director is a supported single-holder authority post under SD.
+QC, SCS, GSD and ESD currently report directly to SD. If that reporting changes,
+Admin must explicitly assign the new authority; no automatic vacancy fallback.
+Do not show vacancy or future reporting labels on application forms.
 
-Plant Manager remains senior to Deputy Plant Manager and must always be
-displayed prominently in the authority hierarchy.
+Reporting is independent of the current employee holding a post. Admin can add
+new authority posts and reparent existing authorities, excluding SD. A reporting
+post must connect to SD; self-reporting and circular reporting are rejected.
+Divisions can report to any configured active authority, including PM.
+Do not convert direct PM assignments to DPM.
 
-A Division can use one of the following two reporting paths:
-
-1. Direct reporting path:
-
-   Division → Senior Director
-
-2. PM/DPM authority chain:
-
-   Division → Deputy Plant Manager → Plant Manager → Senior Director
-
-A Division in the PM/DPM authority chain reports immediately to the Deputy
-Plant Manager. The Deputy Plant Manager reports to the Plant Manager, and the
-Plant Manager reports to the Senior Director.
-
-Plant Manager must not be available as a separate direct Division reporting
-option. For current assignments, an administrator may select only:
-
-- Senior Director
-- Deputy Plant Manager
-
-A Division reporting directly to the Senior Director does not become equal in
-rank to the Plant Manager or Deputy Plant Manager. Reporting path and
-organizational rank are separate concepts.
-
-Historical records may continue showing Plant Manager as a former direct
-reporting authority if that relationship existed previously. Such records must
-remain preserved, while any active legacy direct-PM assignment should be ended
-and replaced with a Deputy Plant Manager assignment.
-
-Every reporting change must preserve history with effective start and end dates.
-
-A Division reports to an authority post, not to an Office unit or employee name.
+Every reporting change preserves previous assignments and their start/end dates.
+Saving the same relationship twice must not create duplicate history.
+Division and authority updates are transactional; Section and Office placement
+continue to use the existing organizational unit controls.
+Section parent changes also retain dated parent relationship history. An
+upgrade records the current parent; previously unrecorded moves cannot be
+reconstructed automatically.
 
 ---
 
@@ -251,6 +236,7 @@ Valid posts are:
 - Senior Director
 - Plant Manager
 - Deputy Plant Manager
+- Associate Director
 - Manager
 - Acting Manager
 - Head
@@ -264,6 +250,7 @@ Globally single-holder posts are:
 - Senior Director
 - Plant Manager
 - Deputy Plant Manager
+- Associate Director
 - HLAO
 - Principal Administrator
 

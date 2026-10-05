@@ -224,3 +224,5 @@ database/*.db-*
 # Local backup files
 database/*backup*.db
 database/*before*.db
+# Generated fictional testing roster
+database/demo_staff.csv

@@ -2,7 +2,9 @@ import os
 import secrets
 import sqlite3
 
-from datetime import timedelta
+from datetime import timedelta, datetime
+from functools import wraps
+from contextlib import closing
 
 import click
 
@@ -11,12 +13,19 @@ from flask import (
     render_template,
     request,
     redirect,
-    session
+    session,
+    abort
 )
 
 from werkzeug.security import (
     check_password_hash,
     generate_password_hash
+)
+
+
+from database.reporting import (
+    upgrade_reporting, root_post_id, authority_posts,
+    set_post_parent, set_division_authority, current_structure_plan, record_unit_parent
 )
 
 
@@ -73,6 +82,14 @@ if not secret_key:
 app.config.update(
     SECRET_KEY=secret_key,
 
+    DATABASE=os.environ.get("OMS_DATABASE", "database/office.db"),
+
+    SESSION_COOKIE_NAME=(
+        "oms_demo_session"
+        if os.path.basename(os.environ.get("OMS_DATABASE", "database/office.db")).lower() == "office_demo.db"
+        else "session"
+    ),
+
     SESSION_COOKIE_HTTPONLY=True,
 
     SESSION_COOKIE_SAMESITE="Lax",
@@ -84,7 +101,7 @@ app.config.update(
 
 
 def get_db_connection():
-    connection = sqlite3.connect("database/office.db")
+    connection = sqlite3.connect(app.config.get("DATABASE", "database/office.db"))
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
@@ -663,6 +680,42 @@ def change_password():
 # GLOBAL AUTHENTICATION PROTECTION
 # =================================================
 
+ADMIN_ENDPOINT_PERMISSIONS = {
+    "admin_dashboard": "dashboard.view",
+    "organization_hierarchy": "organization.view",
+    "manage_units": "organization.view",
+    "manage_designations": "organization.view",
+    "manage_employees": "employees.view",
+    "manage_posts": "organization.view",
+    "add_employee": "employees.manage",
+    "edit_employee": "employees.manage",
+    "add_unit": "organization.manage",
+    "edit_unit": "organization.manage",
+    "deactivate_unit": "organization.manage",
+    "reactivate_unit": "organization.manage",
+    "add_designation": "organization.manage",
+    "delete_designation": "organization.manage",
+    "assign_post": "organization.manage",
+    "end_post_assignment": "organization.manage",
+    "manage_division_management": "organization.manage",
+    "manage_section_head": "organization.manage",
+    "manage_division_reporting_authority": "organization.manage",
+    "manage_reporting_posts": "organization.manage",
+    "change_reporting_post": "organization.manage",
+}
+
+
+def account_has_permission(code):
+    with closing(get_db_connection()) as connection:
+        return connection.execute("""
+            SELECT 1 FROM user_role_assignments a
+            JOIN system_roles r ON r.id=a.system_role_id AND r.is_active=1
+            JOIN system_role_permissions rp ON rp.system_role_id=r.id
+            JOIN permissions p ON p.id=rp.permission_id AND p.is_active=1
+            WHERE a.user_account_id=? AND a.is_active=1 AND p.code=?
+        """, (session.get("user_account_id"),code)).fetchone() is not None
+
+
 @app.before_request
 def enforce_authentication():
 
@@ -734,7 +787,183 @@ def enforce_authentication():
     ):
         return redirect("/change-password")
 
+    if request.path.startswith("/admin"):
+        permission = ADMIN_ENDPOINT_PERMISSIONS.get(request.endpoint, "organization.manage")
+        if not account_has_permission(permission):
+            abort(403)
+    elif request.endpoint in ("cd_dvd", "new_dvd_request"):
+        if not account_has_permission("dvd.request.create"):
+            abort(403)
+
     return None
+
+def organization_manager_required(view):
+    @wraps(view)
+    def protected(*args, **kwargs):
+        connection = get_db_connection()
+        allowed = connection.execute("""
+            SELECT 1 FROM user_role_assignments AS assignment
+            JOIN system_roles AS role ON role.id=assignment.system_role_id AND role.is_active=1
+            JOIN system_role_permissions AS grant_rule ON grant_rule.system_role_id=role.id
+            JOIN permissions AS permission ON permission.id=grant_rule.permission_id AND permission.is_active=1
+            WHERE assignment.user_account_id=? AND assignment.is_active=1
+              AND permission.code='organization.manage'
+        """, (session.get("user_account_id"),)).fetchone()
+        connection.close()
+        if not allowed:
+            abort(403)
+        return view(*args, **kwargs)
+    return protected
+
+
+def backup_database(connection):
+    path = app.config.get("DATABASE", "database/office.db")
+    backup_path = os.path.splitext(path)[0] + "_before_reporting_" + datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".db"
+    with closing(sqlite3.connect(backup_path)) as backup:
+        connection.backup(backup)
+    return backup_path
+
+
+@app.cli.command("upgrade-reporting")
+def upgrade_reporting_command():
+    """Back up the local database and enable editable authority reporting."""
+    connection = get_db_connection()
+    try:
+        click.echo("Backup: " + backup_database(connection))
+        with connection:
+            connection.execute("BEGIN IMMEDIATE")
+            upgrade_reporting(connection)
+    finally:
+        connection.close()
+    click.echo("Reporting schema upgraded. Existing Division assignments were preserved.")
+
+
+@app.cli.command("apply-current-hierarchy")
+@click.option("--apply", is_flag=True, help="Apply the previewed structure to the local database.")
+@click.option("--create-missing", is_flag=True, help="Create confirmed Divisions that do not yet exist.")
+def apply_current_hierarchy_command(apply, create_missing):
+    """Preview/apply the confirmed 05 October 2026 reporting structure."""
+    connection = get_db_connection()
+    try:
+        if apply:
+            click.echo("Backup: " + backup_database(connection))
+            connection.execute("BEGIN IMMEDIATE")
+        plan = current_structure_plan(connection)
+        for name, authority, unit_id in plan:
+            click.echo(f"{name} -> {authority}" + (" [missing]" if unit_id is None else ""))
+        if not apply:
+            click.echo("Preview only. No database changes made.")
+            return
+        if any(unit_id is None for _, _, unit_id in plan) and not create_missing:
+            raise ValueError("Some Divisions are missing. Add them first or use --create-missing after reviewing the preview.")
+        ids = {row["name"]: row["id"] for row in authority_posts(connection)}
+        # The command sets today's confirmed PM/DPM relationship; future edits use the admin screen.
+        for child, parent in (("Plant Manager", "Senior Director"), ("Deputy Plant Manager", "Plant Manager")):
+            if child not in ids or parent not in ids:
+                raise ValueError("Default authority names changed. Apply reporting through the admin screens instead.")
+            set_post_parent(connection, ids[child], ids[parent])
+        for name, authority, unit_id in plan:
+            if unit_id is None:
+                cursor = connection.execute("INSERT INTO organizational_units(name,unit_type) VALUES (?,'Division')", (name,))
+                unit_id = cursor.lastrowid
+                record_unit_parent(connection, unit_id, None)
+                connection.execute("INSERT INTO organizational_unit_name_history(organizational_unit_id,name,normalized_name,is_current) VALUES (?,?,?,1)", (unit_id,name,name.lower()))
+            set_division_authority(connection, unit_id, ids[authority])
+        connection.commit()
+        click.echo("Current hierarchy applied. Prior reporting history preserved.")
+    except (ValueError, sqlite3.IntegrityError) as error:
+        connection.rollback()
+        raise click.ClickException(str(error))
+    finally:
+        connection.close()
+
+
+@app.route("/admin/reporting-posts", methods=["GET", "POST"])
+@organization_manager_required
+def manage_reporting_posts():
+    connection = get_db_connection()
+    error = None
+    try:
+        if request.method == "POST":
+            if request.form.get("csrf_token") != session.get("reporting_csrf_token") or not session.get("reporting_csrf_token"):
+                abort(400)
+            name = clean_name(request.form.get("name", ""))
+            parent_value = request.form.get("parent_post_id", "")
+            if not name or not parent_value.isdigit():
+                raise ValueError("Enter a post name and select its reporting authority.")
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute("INSERT INTO posts(name,max_active_holders,is_reporting_authority) VALUES (?,1,1)", (name,))
+            set_post_parent(connection, cursor.lastrowid, int(parent_value))
+            connection.commit()
+            return redirect("/admin/reporting-posts")
+    except (ValueError, sqlite3.IntegrityError) as exc:
+        connection.rollback()
+        error = str(exc) if isinstance(exc, ValueError) else "A post with this name already exists."
+    finally:
+        if request.method == "POST" and error is None:
+            connection.close()
+    root = root_post_id(connection)
+    posts = connection.execute("""SELECT p.id,p.name,r.parent_post_id,parent.name AS parent_name
+        FROM posts p LEFT JOIN post_reporting_assignments r ON r.post_id=p.id AND r.is_active=1
+        LEFT JOIN posts parent ON parent.id=r.parent_post_id
+        WHERE p.is_active=1 AND p.is_reporting_authority=1 ORDER BY p.name""").fetchall()
+    history = connection.execute("""SELECT p.name,parent.name AS parent_name,r.start_date,r.end_date,r.is_active
+        FROM post_reporting_assignments r JOIN posts p ON p.id=r.post_id
+        JOIN posts parent ON parent.id=r.parent_post_id ORDER BY r.id DESC""").fetchall()
+    connection.close()
+    session.setdefault("reporting_csrf_token", secrets.token_hex(32))
+    return render_template("reporting_posts.html", posts=posts, history=history, root_id=root, error=error), (400 if error else 200)
+
+
+@app.route("/admin/reporting-posts/<int:post_id>", methods=["POST"])
+@organization_manager_required
+def change_reporting_post(post_id):
+    if not session.get("reporting_csrf_token") or request.form.get("csrf_token") != session["reporting_csrf_token"]:
+        abort(400)
+    connection = get_db_connection()
+    try:
+        parent_value = request.form.get("parent_post_id", "")
+        if not parent_value.isdigit():
+            raise ValueError("Select a reporting authority.")
+        connection.execute("BEGIN IMMEDIATE")
+        set_post_parent(connection, post_id, int(parent_value))
+        connection.commit()
+    except (ValueError, sqlite3.IntegrityError) as error:
+        connection.rollback()
+        return str(error), 400
+    finally:
+        connection.close()
+    return redirect("/admin/reporting-posts")
+
+
+@app.after_request
+def mark_demo_database(response):
+    # A clear marker helps users distinguish sandbox data from their own database.
+    if response.mimetype != "text/html" or response.direct_passthrough:
+        return response
+    connection = None
+    try:
+        connection = get_db_connection()
+        has_marker = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_metadata'"
+        ).fetchone()
+        is_demo = has_marker and connection.execute(
+            "SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'"
+        ).fetchone()
+    except sqlite3.Error:
+        is_demo = False
+    finally:
+        if connection is not None:
+            connection.close()
+    if is_demo:
+        import re
+        banner = ('<div style="background:#fff1cc;color:#613900;padding:12px;'
+                  'text-align:center;font:700 15px Arial;border-bottom:2px solid #d89500">'
+                  'DEMO DATABASE — fictional staff for testing</div>')
+        response.set_data(re.sub(r'(<body\b[^>]*>)', lambda match: match.group(1) + banner,
+                                 response.get_data(as_text=True), count=1, flags=re.IGNORECASE))
+    return response
+
 
 @app.route("/")
 def home():
@@ -759,39 +988,19 @@ def organization_hierarchy():
 
     connection = get_db_connection()
 
-    # Organization ke top-level active post holders.
     top_authorities = connection.execute("""
-        SELECT
-            posts.name AS post_name,
-            employees.pin,
-            employees.name AS employee_name
+        SELECT posts.id, posts.name AS post_name,
+               employees.pin, employees.name AS employee_name,
+               reporting.parent_post_id, parent.name AS parent_name
         FROM posts
-
-        LEFT JOIN employee_post_assignments
-            ON employee_post_assignments.post_id = posts.id
-           AND employee_post_assignments.is_active = 1
-
-        LEFT JOIN employees
-            ON employee_post_assignments.employee_id = employees.id
-           AND employees.is_active = 1
-
-        WHERE posts.is_active = 1
-          AND posts.name IN (
-                'Senior Director',
-                'Plant Manager',
-                'Deputy Plant Manager',
-                'HLAO',
-                'Principal Administrator'
-          )
-
-        ORDER BY CASE posts.name
-            WHEN 'Senior Director' THEN 1
-            WHEN 'Plant Manager' THEN 2
-            WHEN 'Deputy Plant Manager' THEN 3
-            WHEN 'HLAO' THEN 4
-            WHEN 'Principal Administrator' THEN 5
-            ELSE 6
-        END
+        LEFT JOIN employee_post_assignments AS holder
+          ON holder.post_id=posts.id AND holder.is_active=1
+        LEFT JOIN employees ON holder.employee_id=employees.id AND employees.is_active=1
+        LEFT JOIN post_reporting_assignments AS reporting
+          ON reporting.post_id=posts.id AND reporting.is_active=1
+        LEFT JOIN posts AS parent ON parent.id=reporting.parent_post_id
+        WHERE posts.is_active=1 AND posts.is_reporting_authority=1
+        ORDER BY posts.name COLLATE NOCASE
     """).fetchall()
 
     # Har active Division ki reporting authority aur current management.
@@ -801,6 +1010,7 @@ def organization_hierarchy():
             division.name,
 
             authority_post.name AS authority_post_name,
+            reporting.authority_post_id,
 
             management.responsibility_type,
             manager.pin AS manager_pin,
@@ -888,6 +1098,19 @@ def organization_hierarchy():
         ORDER BY office.name
     """).fetchall()
 
+    hierarchy_root_id = root_post_id(connection)
+    # Unused authority seats stay in admin management, without appearing on forms.
+    visible_ids = {hierarchy_root_id}
+    visible_ids.update(row["authority_post_id"] for row in divisions if row["authority_post_id"])
+    visible_ids.update(row["id"] for row in top_authorities if row["employee_name"])
+    parents = {row["id"]: row["parent_post_id"] for row in top_authorities}
+    for post_id in list(visible_ids):
+        seen = set()
+        while post_id in parents and parents[post_id] and post_id not in seen:
+            seen.add(post_id)
+            post_id = parents[post_id]
+            visible_ids.add(post_id)
+    top_authorities = [row for row in top_authorities if row["id"] in visible_ids]
     connection.close()
 
     return render_template(
@@ -895,7 +1118,8 @@ def organization_hierarchy():
         top_authorities=top_authorities,
         divisions=divisions,
         sections=sections,
-        offices=offices
+        offices=offices,
+        root_id=hierarchy_root_id
     )
 
 
@@ -1131,6 +1355,7 @@ def add_unit():
         ))
 
         new_unit_id = cursor.lastrowid
+        record_unit_parent(connection, new_unit_id, parent_id)
 
         # Initial unit name ko history mein bhi save karein.
         connection.execute("""
@@ -1357,6 +1582,8 @@ def edit_unit(unit_id):
                 normalized_new_name
             ))
 
+        record_unit_parent(connection, unit_id, new_parent_id)
+
         # Current master record update karein.
         connection.execute("""
             UPDATE organizational_units
@@ -1384,12 +1611,17 @@ def edit_unit(unit_id):
         ORDER BY name
     """, (unit_id,)).fetchall()
 
+    parent_history = connection.execute("""SELECT h.start_date,h.end_date,h.is_current,
+        parent.name AS parent_name FROM organizational_unit_parent_history h
+        LEFT JOIN organizational_units parent ON parent.id=h.parent_id
+        WHERE h.organizational_unit_id=? ORDER BY h.id DESC""", (unit_id,)).fetchall()
     connection.close()
 
     return render_template(
         "edit_unit.html",
         unit=unit,
-        parent_units=parent_units
+        parent_units=parent_units,
+        parent_history=parent_history
     )
 @app.route("/admin/units/deactivate/<int:unit_id>", methods=["POST"])
 def deactivate_unit(unit_id):
@@ -1751,6 +1983,7 @@ def reactivate_unit(unit_id):
     "/admin/divisions/<int:division_id>/reporting-authority",
     methods=["GET", "POST"]
 )
+@organization_manager_required
 def manage_division_reporting_authority(division_id):
 
     connection = get_db_connection()
@@ -1769,25 +2002,7 @@ def manage_division_reporting_authority(division_id):
         connection.close()
         return "Division not found.", 404
 
-    # Division sirf do reporting paths mein se ek use karegi:
-    # 1. Directly Senior Director
-    # 2. Deputy Plant Manager ke through PM aur SD chain
-    authority_posts = connection.execute("""
-        SELECT
-            id,
-            name
-        FROM posts
-        WHERE name IN (
-            'Senior Director',
-            'Deputy Plant Manager'
-        )
-          AND is_active = 1
-        ORDER BY
-            CASE name
-                WHEN 'Senior Director' THEN 1
-                WHEN 'Deputy Plant Manager' THEN 2
-            END
-    """).fetchall()
+    authority_posts_list = authority_posts(connection)
 
     current_assignment = connection.execute("""
         SELECT
@@ -1806,6 +2021,10 @@ def manage_division_reporting_authority(division_id):
     """, (division_id,)).fetchone()
 
     if request.method == "POST":
+        if not session.get("reporting_csrf_token") or request.form.get("csrf_token") != session["reporting_csrf_token"]:
+            connection.close()
+            abort(400)
+
 
         authority_post_id_value = request.form.get(
             "authority_post_id",
@@ -1825,89 +2044,22 @@ def manage_division_reporting_authority(division_id):
             connection.close()
 
             return (
-                "Please select Senior Director or "
-                "Deputy Plant Manager.",
+                "Please select a reporting authority.",
                 400
             )
 
         authority_post_id = int(authority_post_id_value)
 
-        # Backend validation browser form ko bypass karne par bhi
-        # Plant Manager ya koi doosra post accept nahi karegi.
-        selected_authority = connection.execute("""
-            SELECT
-                id,
-                name
-            FROM posts
-            WHERE id = ?
-              AND name IN (
-                  'Senior Director',
-                  'Deputy Plant Manager'
-              )
-              AND is_active = 1
-        """, (authority_post_id,)).fetchone()
-
-        if selected_authority is None:
-            connection.close()
-
-            return (
-                "The selected reporting authority is invalid.",
-                400
-            )
-
-        # Same authority dobara select ho to duplicate history na banayein.
-        if (
-            current_assignment is not None
-            and current_assignment["authority_post_id"]
-                == authority_post_id
-        ):
-            connection.close()
-            return redirect("/admin/units")
-
         try:
-
-            # Purani current reporting relationship history mein close karein.
-            connection.execute("""
-                UPDATE division_reporting_assignments
-                SET is_active = 0,
-                    end_date = COALESCE(
-                        end_date,
-                        CURRENT_DATE
-                    )
-                WHERE division_id = ?
-                  AND is_active = 1
-            """, (division_id,))
-
-            # Nayi reporting authority current assignment banegi.
-            connection.execute("""
-                INSERT INTO division_reporting_assignments
-                (
-                    division_id,
-                    authority_post_id,
-                    start_date,
-                    is_active
-                )
-                VALUES (?, ?, CURRENT_DATE, 1)
-            """, (
-                division_id,
-                authority_post_id
-            ))
-
+            connection.execute("BEGIN IMMEDIATE")
+            set_division_authority(connection, division_id, authority_post_id)
             connection.commit()
-            connection.close()
-
-            return redirect("/admin/units")
-
-        except sqlite3.IntegrityError:
-
+        except (ValueError, sqlite3.IntegrityError) as error:
             connection.rollback()
             connection.close()
-
-            return (
-                "Reporting authority could not be updated because "
-                "this Division already has an active authority.",
-                400
-            )
+            return str(error), 400
+        connection.close()
+        return redirect("/admin/units")
 
     reporting_history = connection.execute("""
         SELECT
@@ -1929,10 +2081,11 @@ def manage_division_reporting_authority(division_id):
 
     connection.close()
 
+    session.setdefault("reporting_csrf_token", secrets.token_hex(32))
     return render_template(
         "assign_division_authority.html",
         division=division,
-        authority_posts=authority_posts,
+        authority_posts=authority_posts_list,
         current_assignment=current_assignment,
         reporting_history=reporting_history
     )
@@ -3166,6 +3319,8 @@ def new_dvd_request():
 
     connection = get_db_connection()
 
+    account = connection.execute("SELECT employee_id FROM user_accounts WHERE id=?", (session["user_account_id"],)).fetchone()
+    current_employee_id = account["employee_id"]
     employees = connection.execute("""
         SELECT
             employees.id,
@@ -3177,20 +3332,27 @@ def new_dvd_request():
         FROM employees
         JOIN designations
             ON employees.designation_id = designations.id
-        JOIN organizational_units
-            ON employees.organizational_unit_id = organizational_units.id
-        WHERE employees.is_active = 1
+        JOIN employee_location_assignments location ON location.employee_id=employees.id AND location.is_active=1
+        JOIN organizational_units ON location.organizational_unit_id=organizational_units.id AND organizational_units.is_active=1
+        WHERE employees.is_active = 1 AND employees.id=?
         ORDER BY employees.name
-    """).fetchall()
+    """, (current_employee_id,)).fetchall()
 
     if request.method == "POST":
 
-        requester_employee_id = request.form["requester_employee_id"]
-        dvd_category = request.form["dvd_category"]
+        requester_employee_id = request.form.get("requester_employee_id", "").strip()
+        dvd_category = request.form.get("dvd_category", "").strip()
         permanent_source_type = request.form.get("permanent_source_type")
 
+        if not requester_employee_id.isdigit() or int(requester_employee_id) != current_employee_id or not employees:
+            connection.close()
+            return "Requests must use your own active employee placement.", 400
+        if dvd_category not in ("Internal", "Internet", "External", "Vendor", "Outward", "Permanent"):
+            connection.close()
+            return "Select a valid DVD category.", 400
+
         if dvd_category == "Permanent":
-            if not permanent_source_type:
+            if permanent_source_type not in ("Internal", "Internet", "External", "Vendor"):
                 connection.close()
                 return "Permanent source type is required.", 400
         else:
@@ -3230,6 +3392,11 @@ def dvd_request_details(request_id):
 
     connection = get_db_connection()
 
+    owner = connection.execute("SELECT employee_id FROM user_accounts WHERE id=?", (session["user_account_id"],)).fetchone()[0]
+    can_view_all = account_has_permission("dvd.request.view_all")
+    if not can_view_all and not account_has_permission("dvd.request.view_own"):
+        connection.close()
+        abort(403)
     dvd_request = connection.execute("""
         SELECT
             dvd_requests.id,
@@ -3249,8 +3416,8 @@ def dvd_request_details(request_id):
             ON employees.designation_id = designations.id
         JOIN organizational_units
             ON employees.organizational_unit_id = organizational_units.id
-        WHERE dvd_requests.id = ?
-    """, (request_id,)).fetchone()
+        WHERE dvd_requests.id = ? AND (dvd_requests.requester_employee_id=? OR ?=1)
+    """, (request_id,owner,int(can_view_all))).fetchone()
 
     connection.close()
 
@@ -3981,6 +4148,17 @@ def assign_post():
                         Go Back
                     </a>
                 """, 400
+
+        required_unit_type = {"Head": "Section", "Manager": "Division", "Acting Manager": "Division"}.get(post["name"])
+        if required_unit_type:
+            placeholders = ",".join("?" for _ in organizational_unit_ids)
+            matching = connection.execute(
+                f"SELECT COUNT(*) FROM organizational_units WHERE id IN ({placeholders}) AND unit_type=? AND is_active=1",
+                [*organizational_unit_ids, required_unit_type]
+            ).fetchone()[0]
+            if matching != len(organizational_unit_ids):
+                connection.close()
+                return f"{post['name']} responsibility requires active {required_unit_type} units.", 400
 
         # -----------------------------------------
         # Unique post holder validation

@@ -325,6 +325,18 @@
 
         </div>
 
+        {% if unit.unit_type == 'Section' %}
+        <div class="card"><h2>Parent Division History</h2>
+            <div style="overflow-x:auto"><table style="width:100%;text-align:left;border-collapse:collapse">
+                <thead><tr><th>Parent Division</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
+                <tbody>{% for row in parent_history %}<tr>
+                    <td>{{ row.parent_name or '—' }}</td><td>{{ row.start_date }}</td>
+                    <td>{{ row.end_date or '—' }}</td><td>{{ 'Current' if row.is_current else 'Historical' }}</td>
+                </tr>{% endfor %}</tbody>
+            </table></div>
+        </div>
+        {% endif %}
+
     </div>
 
 </body>

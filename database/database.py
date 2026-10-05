@@ -1,4 +1,5 @@
 import sqlite3
+from reporting import upgrade_reporting
 
 
 connection = sqlite3.connect("database/office.db")
@@ -1217,6 +1218,8 @@ for role_name, permission_codes in default_role_permissions.items():
             permission_code,
             role_name
         ))
+
+upgrade_reporting(connection)
 
 connection.commit()            
 connection.close()

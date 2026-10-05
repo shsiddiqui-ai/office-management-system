@@ -257,9 +257,8 @@
             </h2>
 
             <p class="description">
-                Select whether this Division reports directly to the
-Senior Director or through the Deputy Plant Manager,
-Plant Manager and Senior Director authority chain.
+                Select this Division’s immediate reporting authority. The reporting
+                chain follows the authority relationships configured by Admin.
             </p>
 
 
@@ -303,6 +302,7 @@ Plant Manager and Senior Director authority chain.
 
 
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ session.reporting_csrf_token }}">
 
                 <label for="authority_post_id">
                     Reporting Authority
