@@ -92,6 +92,8 @@ app.config.update(
 
     SESSION_COOKIE_HTTPONLY=True,
 
+    SESSION_COOKIE_SECURE=os.environ.get("OMS_COOKIE_SECURE") == "1",
+
     SESSION_COOKIE_SAMESITE="Lax",
 
     PERMANENT_SESSION_LIFETIME=timedelta(
