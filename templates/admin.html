@@ -1,186 +1,967 @@
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Admin Dashboard</title>
+    <meta name="theme-color" content="#0f172a">
+    <title>Admin Dashboard | Office Management System</title>
 
     <style>
+        :root {
+            --navy: #0f172a;
+            --navy-light: #1e293b;
+            --blue: #2563eb;
+            --blue-light: #eff6ff;
+            --background: #f5f7fb;
+            --white: #ffffff;
+            --text: #17233b;
+            --muted: #64748b;
+            --border: #e5eaf2;
+            --shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
+            background: var(--background);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .header {
-            background-color: #1f2937;
+        a {
+            text-decoration: none;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: var(--navy);
             color: white;
-            padding: 20px;
-            text-align: center;
+            padding: 25px 17px;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
         }
 
-        .container {
-            width: 90%;
-            margin: 30px auto;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 3px 9px 28px;
         }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            background: var(--blue);
+            font-weight: 800;
+            font-size: 19px;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 750;
+            line-height: 1.35;
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 3px;
+        }
+
+        .nav-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: #64748b;
+            margin: 17px 13px 10px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #cbd5e1;
+            padding: 13px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: background .2s, color .2s;
+        }
+
+        .nav-link:hover {
+            background: var(--navy-light);
+            color: white;
+        }
+
+        .nav-link.active {
+            background: #1d4ed8;
+            color: white;
+            font-weight: 650;
+        }
+
+        .nav-icon {
+            font-size: 17px;
+            width: 23px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-bottom {
+            margin-top: auto;
+            padding-top: 25px;
+        }
+
+        .sidebar-note {
+            background: var(--navy-light);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 12px;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
+
+        .sidebar-note strong {
+            color: white;
+        }
+
+        /* MAIN CONTENT */
+
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .topbar {
+            min-height: 76px;
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 35px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .topbar-title {
+            font-weight: 750;
+            font-size: 16px;
+        }
+
+        .topbar-subtitle {
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .role-badge {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            border-radius: 30px;
+            padding: 8px 13px;
+            font-size: 12px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .avatar {
+            width: 37px;
+            height: 37px;
+            border-radius: 50%;
+            background: #dbeafe;
+            color: #1d4ed8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 750;
+            font-size: 13px;
+        }
+
+        .content {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 32px 35px 60px;
+        }
+
+        /* WELCOME BANNER */
+
+        .welcome {
+            background: linear-gradient(
+                115deg,
+                #0f172a 0%,
+                #172b50 60%,
+                #1d4ed8 125%
+            );
+            border-radius: 18px;
+            padding: 34px 36px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome::after {
+            content: "";
+            position: absolute;
+            height: 260px;
+            width: 260px;
+            border-radius: 50%;
+            border: 45px solid rgba(255,255,255,.035);
+            right: -80px;
+            top: -130px;
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            color: #93c5fd;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            font-weight: 750;
+            text-transform: uppercase;
+            margin-bottom: 13px;
+        }
+
+        .welcome h1 {
+            font-size: clamp(22px, 3vw, 32px);
+            letter-spacing: -.7px;
+            line-height: 1.2;
+            margin: 0 0 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome p {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.8;
+            margin: 0;
+            max-width: 560px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* SECTIONS */
+
+        .section-header {
+            margin: 35px 0 20px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .section-header h2 {
+            font-size: 20px;
+            margin: 0 0 7px;
+            letter-spacing: -.4px;
+        }
+
+        .section-header p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .section-count {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 7px 11px;
+            border-radius: 8px;
+            color: #475569;
+            background: #e9eef5;
+            white-space: nowrap;
+        }
+
+        /* MODULE CARDS */
 
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
         }
 
         .card {
             background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            transition: transform .2s, box-shadow .2s;
         }
 
-        .card h2 {
-            margin-top: 0;
-            color: #1f2937;
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(15,23,42,.09);
+        }
+
+        .card-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 23px;
+            margin-bottom: 20px;
+            background: #eff6ff;
+        }
+
+        .icon-purple {
+            background: #f3e8ff;
+        }
+
+        .icon-green {
+            background: #dcfce7;
+        }
+
+        .icon-orange {
+            background: #ffedd5;
+        }
+
+        .icon-cyan {
+            background: #cffafe;
+        }
+
+        .icon-indigo {
+            background: #e0e7ff;
+        }
+
+        .card h3 {
+            font-size: 16px;
+            font-weight: 750;
+            margin: 0 0 10px;
+            letter-spacing: -.2px;
         }
 
         .card p {
-            color: #555;
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.8;
+            margin: 0 0 21px;
+            flex: 1;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 9px;
+            flex-wrap: wrap;
+            margin-top: auto;
         }
 
         .btn {
-            display: inline-block;
-            margin-top: 15px;
-            padding: 10px 16px;
-            background-color: #2563eb;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--blue);
             color: white;
-            text-decoration: none;
-            border-radius: 6px;
+            border: 1px solid var(--blue);
+            border-radius: 9px;
+            padding: 11px 15px;
+            font-weight: 650;
+            font-size: 12px;
+            line-height: 1.3;
+            transition: background .2s;
+            cursor: pointer;
         }
 
         .btn:hover {
-            background-color: #1d4ed8;
+            background: #1d4ed8;
+        }
+
+        .btn-secondary {
+            background: #f8fafc;
+            color: #334155;
+            border-color: #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #eaf0f7;
+        }
+
+        /* FEATURED CD/DVD CARD */
+
+        .featured {
+            border-color: #bfdbfe;
+            background: linear-gradient(
+                145deg,
+                #ffffff,
+                #f3f8ff
+            );
+        }
+
+        .featured .card-icon {
+            background: #dbeafe;
+        }
+
+        .status {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 10px;
+            font-weight: 750;
+            border-radius: 6px;
+            padding: 5px 9px;
+            margin-bottom: 11px;
+            align-self: flex-start;
+        }
+
+        /* FOOTER */
+
+        .footer {
+            margin-top: 42px;
+            border-top: 1px solid var(--border);
+            padding-top: 23px;
+            color: #94a3b8;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        /* MOBILE MENU */
+
+        .menu-check {
+            display: none;
+        }
+
+        .menu-button {
+            display: none;
+        }
+
+        /* RESPONSIVE */
+
+        @media (max-width: 1200px) {
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transition: left .25s ease;
+            }
+
+            .menu-check:checked ~ .layout .sidebar {
+                left: 0;
+            }
+
+            .menu-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 41px;
+                height: 41px;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: white;
+                font-size: 21px;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+
+            .topbar {
+                padding: 15px 22px;
+            }
+
+            .topbar-left {
+                display: flex;
+                align-items: center;
+                gap: 13px;
+            }
+
+            .content {
+                padding: 25px 22px 45px;
+            }
+
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(2,6,23,.6);
+                z-index: 90;
+            }
+
+            .menu-check:checked ~ .mobile-overlay {
+                display: block;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                padding: 13px 16px;
+            }
+
+            .topbar-title {
+                font-size: 14px;
+            }
+
+            .topbar-subtitle {
+                font-size: 11px;
+            }
+
+            .role-badge {
+                font-size: 10px;
+                padding: 7px 9px;
+            }
+
+            .avatar {
+                display: none;
+            }
+
+            .content {
+                padding: 17px 15px 35px;
+            }
+
+            .welcome {
+                padding: 27px 22px;
+                border-radius: 14px;
+            }
+
+            .welcome h1 {
+                font-size: 24px;
+            }
+
+            .section-header {
+                align-items: flex-start;
+            }
+
+            .section-header h2 {
+                font-size: 18px;
+            }
+
+            .card {
+                padding: 22px;
+            }
+
+            .card-actions .btn {
+                flex: 1;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition: none !important;
+                scroll-behavior: auto !important;
+            }
         }
 
     </style>
-
 </head>
-
 
 <body>
 
+<input type="checkbox" id="menu-toggle" class="menu-check">
 
-    <div class="header">
+<label for="menu-toggle"
+       class="mobile-overlay"
+       aria-label="Close navigation"></label>
 
-        <h1>Admin Dashboard</h1>
+<div class="layout">
 
-        <p>Office Management System</p>
+    <!-- SIDEBAR -->
 
-    </div>
+    <aside class="sidebar">
 
+        <div class="brand">
+            <div class="brand-icon">O</div>
+            <div>
+                <div class="brand-title">
+                    Office Management<br>System
+                </div>
+                <div class="brand-subtitle">
+                    Administration Portal
+                </div>
+            </div>
+        </div>
 
-    <div class="container">
+        <div class="nav-label">WORKSPACE</div>
 
+        <a href="/admin" class="nav-link active">
+            <span class="nav-icon">▦</span>
+            Dashboard
+        </a>
 
-        <div class="grid">
+        <div class="nav-label">ORGANIZATION</div>
 
+        <a href="/admin/organization-hierarchy" class="nav-link">
+            <span class="nav-icon">◇</span>
+            Organization Hierarchy
+        </a>
 
-            <!-- ORGANIZATIONAL UNITS -->
+        <a href="/admin/units" class="nav-link">
+            <span class="nav-icon">▤</span>
+            Organizational Units
+        </a>
 
-            <div class="card">
+        <a href="/admin/employees" class="nav-link">
+            <span class="nav-icon">♙</span>
+            Employees
+        </a>
 
-                <h2>Organizational Units</h2>
+        <a href="/admin/designations" class="nav-link">
+            <span class="nav-icon">▣</span>
+            Designations
+        </a>
 
-                <p>
-                    Add, rename, deactivate and manage reporting hierarchy.
-                </p>
+        <a href="/admin/posts" class="nav-link">
+            <span class="nav-icon">♢</span>
+            Posts &amp; Charges
+        </a>
 
-                <a href="/admin/units" class="btn">
-                    Manage Units
-                </a>
+        <a href="/admin/reporting-posts" class="nav-link">
+            <span class="nav-icon">⇄</span>
+            Reporting Posts
+        </a>
 
+        <div class="nav-label">OPERATIONS</div>
+
+        <a href="/cd-dvd" class="nav-link">
+            <span class="nav-icon">◎</span>
+            CD/DVD Management
+        </a>
+
+        <div class="sidebar-bottom">
+
+            <div class="sidebar-note">
+                <strong>System Administration</strong>
+                <div>
+                    Centralized organizational and
+                    operational management.
+                </div>
             </div>
 
-             <!-- ORGANIZATION HIERARCHY -->
+            <a href="/change-password" class="nav-link"
+               style="margin-top: 15px;">
+                <span class="nav-icon">⚿</span>
+                Change Password
+            </a>
 
-<div class="card">
-
-    <h2>Organization Hierarchy</h2>
-
-    <p>
-        View the live authority chain, Division Managers,
-        Sections, Heads and Administrative Offices.
-    </p>
-
-    <a href="/admin/organization-hierarchy" class="btn">
-        View Hierarchy
-    </a>
-    <a href="/admin/reporting-posts" class="btn">Manage Reporting Posts</a>
-
-</div>   
-
-
-
-            <!-- DESIGNATIONS -->
-
-            <div class="card">
-
-                <h2>Designations</h2>
-
-                <p>
-                    Add and manage employee designations.
-                </p>
-
-                <a href="/admin/designations" class="btn">
-                    Manage Designations
-                </a>
-
-            </div>
-
-
-            <!-- EMPLOYEES -->
-
-            <div class="card">
-
-                <h2>Employees</h2>
-
-                <p>
-                    Add employees, assign divisions/units and manage employee records.
-                </p>
-
-                <a href="/admin/employees" class="btn">
-                    Manage Employees
-                </a>
-
-            </div>
-
-
-            <!-- POSTS / CHARGES -->
-
-            <div class="card">
-
-                <h2>Posts / Charges</h2>
-
-                <p>
-                    Assign organizational responsibilities such as Manager,
-                    Head, Senior Director and other charges.
-                </p>
-
-                <a href="/admin/posts" class="btn">
-                    Manage Posts
-                </a>
-
-            </div>
-
+            <form method="POST" action="/logout">
+                <button type="submit"
+                        class="nav-link"
+                        style="background: none; border: 0;
+                               width: 100%; cursor: pointer;
+                               text-align: left;">
+                    <span class="nav-icon">↪</span>
+                    Logout
+                </button>
+            </form>
 
         </div>
 
+    </aside>
 
-    </div>
+    <!-- MAIN PANEL -->
 
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="topbar-left">
+
+                <label for="menu-toggle"
+                       class="menu-button"
+                       aria-label="Toggle navigation">
+                    ☰
+                </label>
+
+                <div>
+                    <div class="topbar-title">
+                        Administration Dashboard
+                    </div>
+                    <div class="topbar-subtitle">
+                        Office Management System
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="topbar-right">
+                <span class="role-badge">
+                    Super Admin
+                </span>
+                <div class="avatar">SA</div>
+            </div>
+
+        </header>
+
+        <div class="content">
+
+            <!-- WELCOME -->
+
+            <section class="welcome">
+
+                <span class="eyebrow">
+                    Management Console
+                </span>
+
+                <h1>Welcome to your workspace</h1>
+
+                <p>
+                    Manage your organization, employees,
+                    reporting structure, authorities and
+                    operational workflows from one
+                    centralized administration portal.
+                </p>
+
+            </section>
+
+            <!-- ORGANIZATION MODULES -->
+
+            <div class="section-header">
+                <div>
+                    <h2>Organization Management</h2>
+                    <p>
+                        Administrative tools for managing
+                        organizational structure and personnel.
+                    </p>
+                </div>
+
+                <span class="section-count">
+                    5 Modules
+                </span>
+            </div>
+
+            <div class="grid">
+
+                <!-- ORGANIZATION HIERARCHY -->
+
+                <div class="card">
+
+                    <div class="card-icon">🏢</div>
+
+                    <h3>Organization Hierarchy</h3>
+
+                    <p>
+                        View organizational reporting chains,
+                        senior authorities, division managers,
+                        section heads and administrative offices.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/admin/organization-hierarchy"
+                           class="btn">
+                            View Hierarchy →
+                        </a>
+
+                        <a href="/admin/reporting-posts"
+                           class="btn btn-secondary">
+                            Reporting Posts
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- ORGANIZATIONAL UNITS -->
+
+                <div class="card">
+
+                    <div class="card-icon icon-purple">▦</div>
+
+                    <h3>Organizational Units</h3>
+
+                    <p>
+                        Create, rename and deactivate offices,
+                        divisions and sections while maintaining
+                        organizational structure.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/admin/units" class="btn">
+                            Manage Units →
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- EMPLOYEES -->
+
+                <div class="card">
+
+                    <div class="card-icon icon-green">👥</div>
+
+                    <h3>Employee Management</h3>
+
+                    <p>
+                        Manage employee records, PINs,
+                        designations, organizational locations
+                        and other employee information.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/admin/employees" class="btn">
+                            Manage Employees →
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- DESIGNATIONS -->
+
+                <div class="card">
+
+                    <div class="card-icon icon-orange">▣</div>
+
+                    <h3>Designations</h3>
+
+                    <p>
+                        Manage official employee designations
+                        and maintain consistent organizational
+                        designation records.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/admin/designations" class="btn">
+                            Manage Designations →
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- POSTS AND CHARGES -->
+
+                <div class="card">
+
+                    <div class="card-icon icon-indigo">⚖</div>
+
+                    <h3>Posts &amp; Charges</h3>
+
+                    <p>
+                        Assign and manage responsibilities
+                        such as Senior Director, Plant Manager,
+                        Manager and Section Head.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/admin/posts" class="btn">
+                            Manage Posts →
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- OPERATIONS -->
+
+            <div class="section-header">
+
+                <div>
+                    <h2>Operational Management</h2>
+                    <p>
+                        Digital workflows for office
+                        services and operational requests.
+                    </p>
+                </div>
+
+                <span class="section-count">
+                    1 Module
+                </span>
+
+            </div>
+
+            <div class="grid">
+
+                <!-- CD/DVD MANAGEMENT -->
+
+                <div class="card featured">
+
+                    <span class="status">
+                        DEVELOPMENT IN PROGRESS
+                    </span>
+
+                    <div class="card-icon">💿</div>
+
+                    <h3>CD/DVD Management</h3>
+
+                    <p>
+                        Manage CD/DVD requests and
+                        operational workflows including
+                        approval processing, issue tracking,
+                        replacements and closure processes.
+                        Available features depend on
+                        implementation progress.
+                    </p>
+
+                    <div class="card-actions">
+                        <a href="/cd-dvd" class="btn">
+                            Open CD/DVD Module →
+                        </a>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- FOOTER -->
+
+            <footer class="footer">
+
+                <span>
+                    © Office Management System
+                </span>
+
+                <span>
+                    Administration Portal |
+                    Python Flask Application
+                </span>
+
+            </footer>
+
+        </div>
+
+    </main>
+
+</div>
 
 </body>
-
 </html>
