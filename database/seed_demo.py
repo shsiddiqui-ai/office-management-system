@@ -159,10 +159,12 @@ def populate(connection, password):
             (employee_id, location, section),
         )
 
+        # Demo accounts can log in without a forced
+        # password change when the demo DB is recreated.
         account = connection.execute(
             """INSERT INTO user_accounts
             (employee_id,password_hash,must_change_password)
-            VALUES (?,?,1)""",
+            VALUES (?,?,0)""",
             (employee_id, password_hash),
         ).lastrowid
 
@@ -549,8 +551,7 @@ def demo_status():
             "PRAGMA foreign_key_check"
         ).fetchall():
             raise ValueError(
-                "Demo relationship integrity check failed. "
-                "Preserve the file for inspection."
+                "Demo relationship integrity check failed."
             )
 
         employees = connection.execute(
@@ -687,6 +688,7 @@ def main():
 
             confirmation = getpass.getpass(
                 "Confirm DEMO password: "
+                "(12+ characters): "
             )
 
             if password != confirmation:
@@ -716,8 +718,8 @@ def main():
         )
 
         print(
-            "Accounts require a password change "
-            "on first login."
+            "Demo accounts do not require a password "
+            "change on first login."
         )
 
         print(
