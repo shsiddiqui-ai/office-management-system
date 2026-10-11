@@ -1,167 +1,863 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New DVD Request</title>
+    <meta name="theme-color" content="#0f172a">
+    <title>New DVD Request | Office Management System</title>
 
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            color: #1f2937;
+        :root {
+            --navy: #0f172a;
+            --navy-light: #1e293b;
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --background: #f5f7fb;
+            --white: #ffffff;
+            --text: #17233b;
+            --muted: #64748b;
+            --border: #e2e8f0;
         }
 
-        .header {
-            background-color: #1f2937;
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont,
+                         "Segoe UI", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        .topbar {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 17px 5%;
+        }
+
+        .topbar-inner {
+            max-width: 1100px;
+            margin: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            background: var(--blue);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: white;
-            padding: 20px 5%;
+            font-size: 19px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-size: 15px;
+            font-weight: 750;
+        }
+
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .back-link {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            color: #334155;
+            padding: 11px 15px;
+            border-radius: 9px;
+            font-size: 12px;
+            font-weight: 650;
+            white-space: nowrap;
+        }
+
+        .back-link:hover {
+            background: #eaf0f7;
         }
 
         .container {
-            width: 90%;
-            max-width: 800px;
-            margin: 30px auto;
+            max-width: 1100px;
+            margin: auto;
+            padding: 30px 5% 60px;
         }
 
-        .card {
+        .hero {
+            background: linear-gradient(
+                115deg,
+                #0f172a,
+                #172b50 65%,
+                #1d4ed8 135%
+            );
+            color: white;
+            padding: 34px 37px;
+            border-radius: 18px;
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            color: #93c5fd;
+            font-size: 11px;
+            font-weight: 750;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 13px;
+            display: block;
+        }
+
+        .hero h1 {
+            font-size: clamp(24px, 4vw, 32px);
+            margin: 0 0 12px;
+            letter-spacing: -.5px;
+        }
+
+        .hero p {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.8;
+            margin: 0;
+            max-width: 650px;
+        }
+
+        .form-card {
             background: white;
-            padding: 30px;
+            border: 1px solid #e5eaf2;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(15,23,42,.04);
+            overflow: hidden;
+        }
+
+        .form-section {
+            padding: 29px 32px;
+            border-bottom: 1px solid #edf1f6;
+        }
+
+        .form-section:last-child {
+            border-bottom: 0;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            margin-bottom: 24px;
+        }
+
+        .section-number {
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            color: var(--blue-dark);
             border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            font-weight: 800;
+            font-size: 13px;
+            flex-shrink: 0;
+        }
+
+        .section-heading h2 {
+            font-size: 17px;
+            margin: 0 0 5px;
+        }
+
+        .section-heading p {
+            font-size: 12px;
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .field {
+            margin-bottom: 21px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
         }
 
         label {
             display: block;
-            margin-top: 18px;
-            margin-bottom: 7px;
-            font-weight: bold;
+            font-weight: 650;
+            font-size: 13px;
+            margin-bottom: 9px;
+            color: #334155;
         }
 
-        select,
-        input {
+        .required {
+            color: #dc2626;
+        }
+
+        select {
             width: 100%;
-            padding: 11px;
-            box-sizing: border-box;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+            padding: 13px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #fff;
+            color: #17233b;
+            font: inherit;
+            font-size: 13px;
+            min-height: 48px;
+            transition: border-color .2s, box-shadow .2s;
         }
 
-        .btn {
-            margin-top: 25px;
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 11px 18px;
-            border-radius: 6px;
-            cursor: pointer;
+        select:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+        }
+
+        .field-help {
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.7;
+            margin-top: 9px;
+        }
+
+        .category-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            padding: 17px;
+            margin-top: 18px;
+        }
+
+        .category-info-title {
+            font-size: 12px;
+            font-weight: 750;
+            color: #334155;
+            margin-bottom: 9px;
+        }
+
+        .category-info p {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.8;
+            color: #64748b;
+        }
+
+        .permanent-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
         }
 
         .hidden {
             display: none;
         }
+
+        .notice {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 11px;
+            padding: 16px 18px;
+            color: #166534;
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+        .actions {
+            padding: 25px 32px;
+            background: #fbfcfe;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--blue);
+            color: white;
+            padding: 13px 23px;
+            border: 1px solid var(--blue);
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            min-height: 46px;
+            cursor: pointer;
+            transition: background .2s, transform .2s;
+        }
+
+        .btn:hover {
+            background: var(--blue-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            color: #475569;
+            background: white;
+            border-color: #cbd5e1;
+        }
+
+        .btn-secondary:hover {
+            background: #f1f5f9;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-top: 26px;
+            margin-top: 32px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 18px 15px 35px;
+            }
+
+            .topbar {
+                padding: 14px 15px;
+            }
+
+            .brand-title {
+                font-size: 12px;
+            }
+
+            .back-link {
+                font-size: 11px;
+                padding: 10px;
+            }
+
+            .hero {
+                padding: 27px 22px;
+                border-radius: 14px;
+            }
+
+            .form-section {
+                padding: 24px 20px;
+            }
+
+            .section-heading {
+                align-items: flex-start;
+            }
+
+            .actions {
+                padding: 20px;
+                flex-direction: column-reverse;
+            }
+
+            .actions .btn {
+                width: 100%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                transition: none !important;
+            }
+        }
+
+
+        
+/* DVD REQUEST ITEMS */
+
+.dvd-item-row {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.dvd-item-row input {
+    width: 100%;
+    padding: 13px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13px;
+    background: white;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.dvd-item-row input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+}
+
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <h1>New DVD Request</h1>
+    <header class="topbar">
+        <div class="topbar-inner">
+
+            <div class="brand">
+                <div class="brand-icon">O</div>
+                <div>
+                    <div class="brand-title">
+                        Office Management System
+                    </div>
+                    <div class="brand-subtitle">
+                        CD/DVD Operations Portal
+                    </div>
+                </div>
+            </div>
+
+            <a href="/cd-dvd" class="back-link">
+                ← CD/DVD Management
+            </a>
+
+        </div>
+    </header>
+
+    <main class="container">
+
+        <section class="hero">
+            <span class="eyebrow">
+                New Service Request
+            </span>
+
+            <h1>Create DVD Request</h1>
+
+            <p>
+                Submit a new CD/DVD request using your
+                employee information and the appropriate
+                media category.
+            </p>
+        </section>
+
+        <form method="POST" action="/dvd-request/new">
+
+            <div class="form-card">
+
+                <!-- SECTION 1 -->
+
+                <section class="form-section">
+
+                    <div class="section-heading">
+                        <span class="section-number">01</span>
+
+                        <div>
+                            <h2>Requester Information</h2>
+                            <p>
+                                Your employee identity and
+                                organizational placement.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="requester_employee_id">
+                            Requester Employee
+                            <span class="required">*</span>
+                        </label>
+
+                        <select
+                            id="requester_employee_id"
+                            name="requester_employee_id"
+                            required
+                        >
+                            <option value="">
+                                Select Employee
+                            </option>
+
+                            {% for employee in employees %}
+                            <option value="{{ employee['id'] }}">
+                                {{ employee['pin'] }}
+                                | {{ employee['name'] }}
+                                | {{ employee['designation_name'] }}
+                                | {{ employee['unit_name'] }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+
+                        <div class="field-help">
+                            Only your authorized employee
+                            record can be used to submit a request.
+                        </div>
+                    </div>
+
+                </section>
+
+                <!-- SECTION 2 -->
+
+                <section class="form-section">
+
+                    <div class="section-heading">
+                        <span class="section-number">02</span>
+
+                        <div>
+                            <h2>DVD Category</h2>
+                            <p>
+                                Select the type of CD/DVD
+                                required for this request.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="dvd_category">
+                            Select Category
+                            <span class="required">*</span>
+                        </label>
+
+                        <select
+                            id="dvd_category"
+                            name="dvd_category"
+                            required
+                        >
+                            <option value="">
+                                Choose DVD Category
+                            </option>
+
+                            <option value="Internal">
+                                Internal
+                            </option>
+
+                            <option value="Internet">
+                                Internet
+                            </option>
+
+                            <option value="External">
+                                External
+                            </option>
+
+                            <option value="Vendor">
+                                Vendor
+                            </option>
+
+                            <option value="Outward">
+                                Outward
+                            </option>
+
+                            <option value="Permanent">
+                                Permanent
+                            </option>
+                        </select>
+                    </div>
+
+                    <div
+                        id="permanent_source_section"
+                        class="permanent-box hidden"
+                    >
+                        <div class="field">
+
+                            <label for="permanent_source_type">
+                                Permanent Source Type
+                                <span class="required">*</span>
+                            </label>
+
+                            <select
+                                name="permanent_source_type"
+                                id="permanent_source_type"
+                                disabled
+                            >
+                                <option value="">
+                                    Select Source Type
+                                </option>
+
+                                <option value="Internal">
+                                    Internal
+                                </option>
+
+                                <option value="Internet">
+                                    Internet
+                                </option>
+
+                                <option value="External">
+                                    External
+                                </option>
+
+                                <option value="Vendor">
+                                    Vendor
+                                </option>
+                            </select>
+
+                            <div class="field-help">
+                                Select the original source
+                                category of this permanent DVD.
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="category-info">
+
+                        <div class="category-info-title">
+                            Category Information
+                        </div>
+
+                        <p id="category_description" aria-live="polite">
+                            Select a DVD category to view
+                            a short description.
+                        </p>
+
+                    </div>
+
+                </section>
+                    
+<!-- REQUEST ITEMS SECTION -->
+
+<section class="form-section">
+
+    <div class="section-heading">
+        <span class="section-number">03</span>
+
+        <div>
+            <h2>DVD Request Items</h2>
+            <p>
+                Add the description, quantity and remarks
+                for each requested item.
+            </p>
+        </div>
     </div>
 
-    <div class="container">
+    <div id="dvd-items-container">
 
-        <div class="card">
+        <div class="dvd-item-row">
 
-            <form method="POST">
+            <div class="field">
+                <label>Description / Purpose *</label>
 
-                <label>Requester Employee</label>
-
-                <select name="requester_employee_id" required>
-                    <option value="">Select Employee</option>
-
-                    {% for employee in employees %}
-                    <option value="{{ employee['id'] }}">
-                         {{ employee["pin"] }}
-                         | {{ employee["name"] }}
-                        | {{ employee["designation_name"] }}
-    | {{ employee["unit_name"] }}
-                    </option>
-                    {% endfor %}
-                </select>
-
-
-                <label>DVD Category</label>
-
-                <select
-                    name="dvd_category"
-                    id="dvd_category"
+                <input
+                    type="text"
+                    name="description[]"
+                    placeholder="Enter description or purpose"
+                    maxlength="1000"
                     required
-                    onchange="togglePermanentSource()"
                 >
+            </div>
 
-                    <option value="">Select Category</option>
+            <div class="field">
+                <label>Quantity *</label>
 
-                    <option value="Internal">Internal</option>
-                    <option value="Internet">Internet</option>
-                    <option value="External">External</option>
-                    <option value="Vendor">Vendor</option>
-                    <option value="Outward">Outward</option>
-                    <option value="Permanent">Permanent</option>
+                <input
+                    type="number"
+                    name="quantity[]"
+                    min="1"
+                    max="1000"
+                    value="1"
+                    required
+                >
+            </div>
 
-                </select>
+            <div class="field">
+                <label>Remarks</label>
 
-
-                <div id="permanent_source_section" class="hidden">
-
-                    <label>Permanent Source Type</label>
-
-                    <select name="permanent_source_type">
-
-                        <option value="">Select Source</option>
-                        <option value="Internal">Internal</option>
-                        <option value="Internet">Internet</option>
-                        <option value="External">External</option>
-                        <option value="Vendor">Vendor</option>
-
-                    </select>
-
-                </div>
-
-
-                <button type="submit" class="btn">
-                    Create Request
-                </button>
-
-            </form>
+                <input
+                    type="text"
+                    name="remarks[]"
+                    maxlength="1000"
+                    placeholder="Optional remarks"
+                >
+            </div>
 
         </div>
 
     </div>
 
+    <button
+        type="button"
+        id="add-dvd-row"
+        class="btn btn-secondary"
+    >
+        + Add Another Item
+    </button>
+
+</section>
+
+                <!-- SECTION 3 -->
+
+                <section class="form-section">
+
+                    <div class="section-heading">
+                        <span class="section-number">04</span>
+
+                        <div>
+                            <h2>Submission</h2>
+                            <p>
+                                Review the selected details
+                                before creating your request.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="notice">
+                        This request will be created in the
+                        system for further processing.
+                        Approval and DVD issuance are
+                        separate workflow stages.
+                    </div>
+
+                </section>
+
+                <div class="actions">
+
+                    <a href="/cd-dvd"
+                       class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                    <button type="submit" class="btn">
+                        Create Request →
+                    </button>
+
+                </div>
+
+            </div>
+
+        </form>
+
+        <footer class="footer">
+            <span>© Office Management System</span>
+            <span>CD/DVD Request Management</span>
+        </footer>
+
+    </main>
 
     <script>
+        const categorySelect =
+            document.getElementById("dvd_category");
 
-        function togglePermanentSource() {
+        const sourceSection =
+            document.getElementById(
+                "permanent_source_section"
+            );
 
-            const category =
-                document.getElementById("dvd_category").value;
+        const sourceSelect =
+            document.getElementById(
+                "permanent_source_type"
+            );
 
-            const sourceSection =
-                document.getElementById("permanent_source_section");
+        const categoryDescription =
+            document.getElementById(
+                "category_description"
+            );
 
-            if (category === "Permanent") {
+        const descriptions = {
+            Internal:
+                "For internal office CD/DVD requirements.",
+            Internet:
+                "For authorized internet-related media requirements.",
+            External:
+                "For media received from external sources.",
+            Vendor:
+                "For vendor-related media requirements.",
+            Outward:
+                "For media intended to go outside the organization.",
+            Permanent:
+                "For permanent media custody, with a required source type."
+        };
 
-                sourceSection.classList.remove("hidden");
+        function updateCategoryFields() {
+            const category = categorySelect.value;
 
-            } else {
+            const isPermanent =
+                category === "Permanent";
 
-                sourceSection.classList.add("hidden");
+            sourceSection.classList.toggle(
+                "hidden",
+                !isPermanent
+            );
 
+            sourceSelect.disabled = !isPermanent;
+            sourceSelect.required = isPermanent;
+
+            if (!isPermanent) {
+                sourceSelect.value = "";
             }
 
+            categoryDescription.textContent =
+                descriptions[category] ||
+                "Select a DVD category to view a short description.";
         }
+
+        categorySelect.addEventListener(
+            "change",
+            updateCategoryFields
+        );
+
+        updateCategoryFields();
+
+document.getElementById("add-dvd-row").addEventListener(
+    "click",
+    function () {
+
+        const container =
+            document.getElementById("dvd-items-container");
+
+        if (container.children.length >= 20) {
+            alert("Maximum 20 items allowed.");
+            return;
+        }
+
+        const firstRow =
+            container.querySelector(".dvd-item-row");
+
+        const newRow = firstRow.cloneNode(true);
+
+        newRow.querySelectorAll("input").forEach(input => {
+            if (input.name === "quantity[]") {
+                input.value = "1";
+            } else {
+                input.value = "";
+            }
+        });
+
+        if (!newRow.querySelector(".remove-dvd-row")) {
+            const removeButton =
+                document.createElement("button");
+
+            removeButton.type = "button";
+            removeButton.className =
+                "btn btn-secondary remove-dvd-row";
+
+            removeButton.textContent = "Remove Item";
+
+            newRow.appendChild(removeButton);
+        }
+
+        container.appendChild(newRow);
+    }
+);
+
+document.getElementById("dvd-items-container")
+    .addEventListener("click", function (event) {
+
+        if (event.target.classList.contains("remove-dvd-row")) {
+            event.target.closest(".dvd-item-row").remove();
+        }
+    });
 
     </script>
 

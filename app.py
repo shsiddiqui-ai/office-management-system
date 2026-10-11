@@ -3316,77 +3316,281 @@ def delete_designation(designation_id):
 # DVD REQUESTS
 # -------------------------------------------------
 
+
+# =================================================
+# NEW DVD REQUEST
+# =================================================
+
 @app.route("/dvd-request/new", methods=["GET", "POST"])
 def new_dvd_request():
 
     connection = get_db_connection()
 
-    account = connection.execute("SELECT employee_id FROM user_accounts WHERE id=?", (session["user_account_id"],)).fetchone()
-    current_employee_id = account["employee_id"]
-    employees = connection.execute("""
-        SELECT
-            employees.id,
-            employees.pin,
-            employees.name,
-            employees.extension_number,
-            designations.name AS designation_name,
-            organizational_units.name AS unit_name
-        FROM employees
-        JOIN designations
-            ON employees.designation_id = designations.id
-        JOIN employee_location_assignments location ON location.employee_id=employees.id AND location.is_active=1
-        JOIN organizational_units ON location.organizational_unit_id=organizational_units.id AND organizational_units.is_active=1
-        WHERE employees.is_active = 1 AND employees.id=?
-        ORDER BY employees.name
-    """, (current_employee_id,)).fetchall()
-
-    if request.method == "POST":
-
-        requester_employee_id = request.form.get("requester_employee_id", "").strip()
-        dvd_category = request.form.get("dvd_category", "").strip()
-        permanent_source_type = request.form.get("permanent_source_type")
-
-        if not requester_employee_id.isdigit() or int(requester_employee_id) != current_employee_id or not employees:
-            connection.close()
-            return "Requests must use your own active employee placement.", 400
-        if dvd_category not in ("Internal", "Internet", "External", "Vendor", "Outward", "Permanent"):
-            connection.close()
-            return "Select a valid DVD category.", 400
-
-        if dvd_category == "Permanent":
-            if permanent_source_type not in ("Internal", "Internet", "External", "Vendor"):
-                connection.close()
-                return "Permanent source type is required.", 400
-        else:
-            permanent_source_type = None
-
-        cursor = connection.execute("""
-            INSERT INTO dvd_requests
-            (
-                requester_employee_id,
-                dvd_category,
-                permanent_source_type
-            )
-            VALUES (?, ?, ?)
+    try:
+        account = connection.execute("""
+            SELECT employee_id
+            FROM user_accounts
+            WHERE id = ?
+              AND is_active = 1
         """, (
-            requester_employee_id,
-            dvd_category,
-            permanent_source_type
-        ))
+            session["user_account_id"],
+        )).fetchone()
 
-        request_id = cursor.lastrowid
+        if account is None:
+            abort(403)
 
-        connection.commit()
+        current_employee_id = account["employee_id"]
+
+        employees = connection.execute("""
+            SELECT
+                employees.id,
+                employees.pin,
+                employees.name,
+                employees.extension_number,
+                designations.name AS designation_name,
+                organizational_units.name AS unit_name
+
+            FROM employees
+
+            JOIN designations
+                ON employees.designation_id = designations.id
+
+            JOIN employee_location_assignments AS location
+                ON location.employee_id = employees.id
+               AND location.is_active = 1
+
+            JOIN organizational_units
+                ON location.organizational_unit_id =
+                   organizational_units.id
+               AND organizational_units.is_active = 1
+
+            WHERE employees.is_active = 1
+              AND employees.id = ?
+
+            ORDER BY employees.name
+        """, (current_employee_id,)).fetchall()
+
+        if request.method == "POST":
+
+            requester_id = request.form.get(
+                "requester_employee_id", ""
+            ).strip()
+
+            dvd_category = request.form.get(
+                "dvd_category", ""
+            ).strip()
+
+            permanent_source_type = request.form.get(
+                "permanent_source_type", ""
+            ).strip()
+
+            # Only the logged-in employee can request media.
+            if (
+                not requester_id.isdigit()
+                or int(requester_id) != current_employee_id
+                or not employees
+            ):
+                return (
+                    "Requests must use your own active "
+                    "employee placement.",
+                    400
+                )
+
+            allowed_categories = (
+                "Internal",
+                "Internet",
+                "External",
+                "Vendor",
+                "Outward",
+                "Permanent"
+            )
+
+            if dvd_category not in allowed_categories:
+                return "Select a valid DVD category.", 400
+
+            if dvd_category == "Permanent":
+
+                if permanent_source_type not in (
+                    "Internal",
+                    "Internet",
+                    "External",
+                    "Vendor"
+                ):
+                    return (
+                        "Permanent source type is required.",
+                        400
+                    )
+
+            else:
+                permanent_source_type = None
+
+            # Multiple request items from the HTML form.
+            descriptions = request.form.getlist(
+                "description[]"
+            )
+
+            quantities = request.form.getlist(
+                "quantity[]"
+            )
+
+            remarks_list = request.form.getlist(
+                "remarks[]"
+            )
+
+            # Existing simple form compatibility:
+            # Until the updated HTML is installed,
+            # requests without item rows still work.
+            has_item_fields = any((
+                descriptions,
+                quantities,
+                remarks_list
+            ))
+
+            validated_items = []
+
+            if has_item_fields:
+
+                if not (
+                    len(descriptions)
+                    == len(quantities)
+                    == len(remarks_list)
+                ):
+                    return (
+                        "Request item fields do not match.",
+                        400
+                    )
+
+                if not 1 <= len(descriptions) <= 20:
+                    return (
+                        "Add between 1 and 20 request items.",
+                        400
+                    )
+
+                for index, description in enumerate(
+                    descriptions, start=1
+                ):
+
+                    description = description.strip()
+
+                    quantity_text = quantities[
+                        index - 1
+                    ].strip()
+
+                    remarks = remarks_list[
+                        index - 1
+                    ].strip()
+
+                    if not description:
+                        return (
+                            f"Description is required "
+                            f"for item {index}.",
+                            400
+                        )
+
+                    if len(description) > 1000:
+                        return (
+                            f"Description is too long "
+                            f"for item {index}.",
+                            400
+                        )
+
+                    if not quantity_text.isdigit():
+                        return (
+                            f"Invalid quantity for "
+                            f"item {index}.",
+                            400
+                        )
+
+                    quantity = int(quantity_text)
+
+                    if not 1 <= quantity <= 1000:
+                        return (
+                            f"Quantity must be between "
+                            f"1 and 1000 for item {index}.",
+                            400
+                        )
+
+                    if len(remarks) > 1000:
+                        return (
+                            f"Remarks are too long "
+                            f"for item {index}.",
+                            400
+                        )
+
+                    validated_items.append((
+                        description,
+                        quantity,
+                        remarks or None
+                    ))
+
+            # One database transaction:
+            # either everything saves, or nothing saves.
+            try:
+
+                cursor = connection.execute("""
+                    INSERT INTO dvd_requests
+                    (
+                        requester_employee_id,
+                        dvd_category,
+                        permanent_source_type
+                    )
+                    VALUES (?, ?, ?)
+                """, (
+                    current_employee_id,
+                    dvd_category,
+                    permanent_source_type
+                ))
+
+                request_id = cursor.lastrowid
+
+                for (
+                    description,
+                    quantity,
+                    remarks
+                ) in validated_items:
+
+                    connection.execute("""
+                        INSERT INTO dvd_request_items
+                        (
+                            request_id,
+                            description,
+                            quantity,
+                            remarks
+                        )
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        request_id,
+                        description,
+                        quantity,
+                        remarks
+                    ))
+
+                connection.commit()
+
+            except sqlite3.Error:
+
+                connection.rollback()
+                app.logger.exception(
+                    "DVD request could not be saved"
+                )
+
+                return (
+                    "Unable to save DVD request. "
+                    "No partial request was saved.",
+                    500
+                )
+
+            return redirect(
+                f"/dvd-request/{request_id}"
+            )
+
+        return render_template(
+            "new_dvd_request.html",
+            employees=employees
+        )
+
+    finally:
         connection.close()
-
-        return redirect(f"/dvd-request/{request_id}")
-
-    connection.close()
-
-    return render_template(
-        "new_dvd_request.html",
-        employees=employees
-    )
 
 
 @app.route("/dvd-request/<int:request_id>")
