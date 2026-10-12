@@ -1,144 +1,493 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CD/DVD Management</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CD/DVD Management | Office Management System</title>
 
     <style>
+        :root {
+            --navy: #0F172A;
+            --royal: #2563EB;
+            --background: #F5F7FB;
+            --text: #1E293B;
+            --muted: #64748B;
+            --border: #E2E8F0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f8;
             margin: 0;
-            padding: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
         }
 
-        .header {
-            background-color: #1f4e79;
+        .topbar {
+            background: #FFFFFF;
+            border-bottom: 1px solid var(--border);
+            padding: 15px 5%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 39px;
+            height: 39px;
+            display: grid;
+            place-items: center;
+            background: var(--royal);
             color: white;
-            padding: 25px;
+            border-radius: 11px;
+            font-weight: 800;
+            font-size: 19px;
         }
 
-        .header h1 {
-            margin: 0;
+        .brand-title {
+            font-size: 14px;
+            font-weight: 750;
+            color: var(--navy);
         }
 
-        .header p {
-            margin-top: 8px;
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .nav-link {
+            color: #334155;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 13px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .nav-link:hover {
+            background: #F1F5F9;
         }
 
         .container {
-            width: 90%;
-            max-width: 1100px;
-            margin: 30px auto;
+            width: 92%;
+            max-width: 1140px;
+            margin: 30px auto 65px;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            border-radius: 18px;
+            padding: 36px;
+            background: linear-gradient(112deg, #0F172A, #1E3A8A);
+            color: white;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            width: 260px;
+            height: 260px;
+            border-radius: 50%;
+            border: 45px solid rgba(255,255,255,0.04);
+            right: -80px;
+            top: -130px;
+            pointer-events: none;
+        }
+
+        .eyebrow {
+            text-transform: uppercase;
+            color: #93C5FD;
+            font-size: 11px;
+            font-weight: 750;
+            letter-spacing: 1.5px;
+        }
+
+        .hero h1 {
+            margin: 9px 0 8px;
+            font-size: clamp(25px, 4vw, 35px);
+            letter-spacing: -0.9px;
+            line-height: 1.25;
+        }
+
+        .hero p {
+            color: #CBD5E1;
+            font-size: 14px;
+            max-width: 600px;
+            margin: 0;
+        }
+
+        .section-heading {
+            margin: 30px 0 18px;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: end;
+        }
+
+        .section-heading h2 {
+            margin: 0;
+            font-size: 20px;
+            letter-spacing: -0.4px;
+            color: var(--navy);
+        }
+
+        .section-heading p {
+            margin: 3px 0 0;
+            color: var(--muted);
+            font-size: 13px;
         }
 
         .services {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
         }
 
         .card {
-            background-color: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            padding: 24px;
+            min-height: 244px;
+            box-shadow: 0 4px 17px rgba(15,23,42,0.035);
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px rgba(15,23,42,0.08);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-box {
+            width: 47px;
+            height: 47px;
+            display: grid;
+            place-items: center;
+            background: #EFF6FF;
+            color: var(--royal);
+            border-radius: 12px;
+        }
+
+        .icon-box svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .tag {
+            font-size: 10px;
+            font-weight: 750;
+            padding: 5px 9px;
+            border-radius: 30px;
+            white-space: nowrap;
+        }
+
+        .tag-live {
+            background: #DCFCE7;
+            color: #166534;
+        }
+
+        .tag-planned {
+            background: #F1F5F9;
+            color: #64748B;
         }
 
         .card h3 {
-            margin-top: 0;
-            color: #1f4e79;
+            color: var(--navy);
+            font-size: 17px;
+            margin: 21px 0 6px;
+            letter-spacing: -0.3px;
         }
 
         .card p {
-            color: #555;
+            color: var(--muted);
+            font-size: 13px;
+            margin: 0 0 20px;
         }
 
-        .card button {
-            background-color: #1f4e79;
+        .card-action {
+            margin-top: auto;
+            align-self: flex-start;
+            padding: 10px 15px;
+            border-radius: 9px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 750;
+        }
+
+        .action-primary {
+            background: var(--royal);
             color: white;
-            border: none;
-            padding: 10px 16px;
-            border-radius: 6px;
-            cursor: pointer;
         }
 
-        .card button:hover {
-            background-color: #163a5c;
+        .action-primary:hover {
+            background: #1D4ED8;
         }
 
-        .section-title {
-            margin-bottom: 20px;
+        .action-disabled {
+            background: #F1F5F9;
+            color: #94A3B8;
+            cursor: not-allowed;
         }
 
+        .info-strip {
+            margin-top: 22px;
+            padding: 16px 20px;
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
+            border-radius: 11px;
+            font-size: 12px;
+            color: #1E40AF;
+        }
 
-        .service-link {
-    display: inline-block;
-    background: #2563eb;
-    color: white;
-    padding: 11px 17px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: 600;
-}
+        .footer {
+            margin-top: 35px;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            color: #94A3B8;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
 
-.service-link:hover {
-    background: #1d4ed8;
-}
+        @media (max-width: 900px) {
+            .services {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 94%;
+                margin-top: 18px;
+            }
+
+            .hero {
+                padding: 25px 21px;
+            }
+
+            .services {
+                grid-template-columns: 1fr;
+            }
+
+            .card {
+                min-height: 215px;
+            }
+
+            .topbar {
+                padding: 13px 3%;
+            }
+
+            .brand-title {
+                font-size: 12px;
+            }
+
+            .section-heading {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .card {
+                transition: none;
+            }
+
+            .card:hover {
+                transform: none;
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <h1>CD/DVD Management</h1>
-        <p>Manage CD/DVD requests, issues, replacements and disposal records.</p>
-    </div>
-
-    <div class="container">
-
-        <h2 class="section-title">CD/DVD Services</h2>
-
-        <div class="services">
-
-            <div class="card">
-                <h3>New DVD Request</h3>
-                <p>Create a new request for CD/DVD issuance.</p>
-                <a href="/dvd-request/new" class="service-link">Open Request Form →</a>
+    <header class="topbar">
+        <div class="brand">
+            <div class="logo">O</div>
+            <div>
+                <div class="brand-title">Office Management System</div>
+                <div class="brand-subtitle">CD/DVD Operations Portal</div>
             </div>
-
-            <div class="card">
-                <h3>My Requests</h3>
-                <p>View your submitted CD/DVD requests and their status.</p>
-                <button>View</button>
-            </div>
-
-            <div class="card">
-                <h3>Pending Approvals</h3>
-                <p>Review requests waiting for approval.</p>
-                <button>View</button>
-            </div>
-
-            <div class="card">
-                <h3>Issued DVDs</h3>
-                <p>View DVDs that have been issued and are currently in use.</p>
-                <button>View</button>
-            </div>
-
-            <div class="card">
-                <h3>Faulty / Replacement</h3>
-                <p>Manage faulty DVDs and their replacement records.</p>
-                <button>Manage</button>
-            </div>
-
-            <div class="card">
-                <h3>Shredding / Disposal</h3>
-                <p>Manage DVD shredding and disposal records.</p>
-                <button>Manage</button>
-            </div>
-
         </div>
 
-    </div>
+        <a class="nav-link" href="/admin">
+            Admin Dashboard
+        </a>
+    </header>
+
+    <main class="container">
+
+        <section class="hero">
+            <div class="eyebrow">Media Operations Center</div>
+            <h1>CD/DVD Management</h1>
+            <p>
+                A centralized workspace for media requests, approvals,
+                issuance, replacements, and secure disposal tracking.
+            </p>
+        </section>
+
+        <section class="section-heading">
+            <div>
+                <h2>Management Services</h2>
+                <p>Select a service to manage the CD/DVD lifecycle.</p>
+            </div>
+        </section>
+
+        <section class="services">
+
+            <!-- 1. NEW DVD REQUEST -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6M12 12v7M8.5 15.5h7"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-live">Available</span>
+                </div>
+                <h3>New DVD Request</h3>
+                <p>Create a new CD/DVD request with multiple items and quantities.</p>
+                <a class="card-action action-primary" href="/dvd-request/new">
+                    Create Request &rarr;
+                </a>
+            </article>
+
+            <!-- 2. MY REQUESTS -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <rect x="3" y="5" width="18" height="15" rx="2"/>
+                            <path d="M3 9h18M8 3v4M16 3v4M8 14h8M8 17h5"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-live">Available</span>
+                </div>
+                <h3>My Requests</h3>
+                <p>View submitted requests, check status, and follow approval progress.</p>
+                <a class="card-action action-primary"
+   href="{{ url_for('my_dvd_requests') }}">
+    View My Requests &rarr;
+</a>
+            </article>
+
+            <!-- 3. PENDING APPROVALS -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2 20 6v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/>
+                            <path d="m9 12 2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-planned">Planned</span>
+                </div>
+                <h3>Pending Approvals</h3>
+                <p>Review media requests awaiting Manager and CS Head approval.</p>
+                <span class="card-action action-disabled"
+                      aria-disabled="true">Coming Soon</span>
+            </article>
+
+            <!-- 4. ISSUED DVDS -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="12" cy="12" r="9"/>
+                            <circle cx="12" cy="12" r="2.5"/>
+                            <path d="M12 3a9 9 0 0 1 9 9"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-live">Available</span>
+                </div>
+                <h3>Issued DVDs</h3>
+                <p>Track media issued by IT and manage active issuance records.</p>
+                <a class="card-action action-primary"
+   href="{{ url_for('pending_dvd_approvals') }}">
+    View Pending Approvals &rarr;
+</a>
+            </article>
+
+            <!-- 5. FAULTY / REPLACEMENT -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M20 7v5h-5M4 17v-5h5"/>
+                            <path d="M5.5 9A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.5-2"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-planned">Planned</span>
+                </div>
+                <h3>Faulty / Replacement</h3>
+                <p>Manage faulty media and eligible Internal or Internet replacements.</p>
+                <span class="card-action action-disabled"
+                      aria-disabled="true">Coming Soon</span>
+            </article>
+
+            <!-- 6. SHREDDING / DISPOSAL -->
+            <article class="card">
+                <div class="card-top">
+                    <div class="icon-box">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14"/>
+                            <path d="M10 11v6M14 11v6"/>
+                        </svg>
+                    </div>
+                    <span class="tag tag-planned">Planned</span>
+                </div>
+                <h3>Shredding / Disposal</h3>
+                <p>Track secure shredding, disposal and media lifecycle closure.</p>
+                <span class="card-action action-disabled"
+                      aria-disabled="true">Coming Soon</span>
+            </article>
+
+        </section>
+
+        <div class="info-strip">
+            <strong>Workflow:</strong>
+            Request submission &rarr; Manager approval &rarr;
+            CS Head approval &rarr; Senior Director physical approval &rarr;
+            IT issuance.
+        </div>
+
+        <footer class="footer">
+            <span>Office Management System</span>
+            <span>CD/DVD Management &bull; Internal Operations</span>
+        </footer>
+
+    </main>
 
 </body>
 </html>

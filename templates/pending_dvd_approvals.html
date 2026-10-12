@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Approvals | OMS</title>
+    <style>
+        :root {
+            --navy: #0F172A;
+            --blue: #2563EB;
+            --bg: #F5F7FB;
+            --text: #1E293B;
+            --muted: #64748B;
+            --border: #E2E8F0;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 5%;
+            background: white;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            font-weight: 750;
+            color: var(--navy);
+        }
+
+        .back {
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1170px;
+            margin: 30px auto 60px;
+        }
+
+        .hero {
+            background: linear-gradient(110deg, #0F172A, #1E3A8A);
+            color: white;
+            padding: 34px;
+            border-radius: 17px;
+        }
+
+        .eyebrow {
+            color: #93C5FD;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 10px 0;
+            font-size: 30px;
+        }
+
+        .hero p {
+            margin: 0;
+            color: #CBD5E1;
+            font-size: 13px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin: 22px 0;
+        }
+
+        .stat {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 22px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat-value {
+            color: var(--navy);
+            font-size: 29px;
+            font-weight: 750;
+            margin-top: 7px;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-bottom: 22px;
+        }
+
+        .card-heading {
+            padding: 22px 25px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-heading h2 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--navy);
+        }
+
+        .card-heading p {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            padding: 14px 18px;
+            background: #F8FAFC;
+            color: #475569;
+            font-size: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 16px 18px;
+            font-size: 13px;
+            border-bottom: 1px solid #F1F5F9;
+        }
+
+        tr:last-child td { border-bottom: 0; }
+
+        .status {
+            display: inline-block;
+            padding: 5px 11px;
+            border-radius: 20px;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .detail-link {
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .empty {
+            padding: 27px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .notice {
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
+            color: #1E40AF;
+            padding: 17px 20px;
+            border-radius: 11px;
+            font-size: 12px;
+            margin-top: 20px;
+            line-height: 1.7;
+        }
+
+        @media (max-width: 700px) {
+            .stats { grid-template-columns: 1fr; }
+            .hero { padding: 25px 21px; }
+            .hero h1 { font-size: 24px; }
+            .stat { padding: 17px; }
+            .topbar { padding: 15px 3%; }
+            th, td { padding: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="topbar">
+        <div class="brand">Office Management System</div>
+        <a class="back" href="/cd-dvd">&larr; CD/DVD Management</a>
+    </header>
+
+    <main class="container">
+        <section class="hero">
+            <div class="eyebrow">Media Authorization Center</div>
+            <h1>Pending Approvals</h1>
+            <p>Review requests according to assigned responsibilities and approval stages.</p>
+        </section>
+
+        <section class="stats">
+            <div class="stat">
+                <div class="stat-label">Manager Review</div>
+                <div class="stat-value">{{ manager_requests | length }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Cyber Security Review</div>
+                <div class="stat-value">{{ cyber_requests | length }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">IT Processing</div>
+                <div class="stat-value">{{ it_requests | length }}</div>
+            </div>
+        </section>
+
+        {% set queues = [
+            ("Manager Approval Queue", "Requests awaiting responsible Manager or Head approval.", manager_requests),
+            ("Cyber Security Review Queue", "Requests awaiting Cyber Security authorization.", cyber_requests),
+            ("IT Processing Queue", "Requests ready for technical processing after physical SD approval.", it_requests)
+        ] %}
+
+        {% for heading, description, requests in queues %}
+        <section class="card">
+            <div class="card-heading">
+                <h2>{{ heading }}</h2>
+                <p>{{ description }}</p>
+            </div>
+
+            {% if requests %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Requester</th>
+                            <th>PIN</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dvd in requests %}
+                        <tr>
+                            <td><strong>#{{ dvd["id"] }}</strong></td>
+                            <td>{{ dvd["requester_name"] }}</td>
+                            <td>{{ dvd["requester_pin"] }}</td>
+                            <td>{{ dvd["dvd_category"] }}</td>
+                            <td><span class="status">{{ dvd["status"] }}</span></td>
+                            <td>{{ dvd["created_at"] }}</td>
+                            <td>
+                                <a class="detail-link"
+                                   href="/dvd-request/{{ dvd['id'] }}">
+                                    View Details &rarr;
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">
+                No requests currently awaiting this stage.
+            </div>
+            {% endif %}
+        </section>
+        {% endfor %}
+
+        <div class="notice">
+            <strong>Read-only stage:</strong>
+            Approval and rejection actions are not enabled yet.
+            Senior Director approval will remain a physical process.
+            Only verified, authorized actions will update request status.
+        </div>
+    </main>
+</body>
+</html>

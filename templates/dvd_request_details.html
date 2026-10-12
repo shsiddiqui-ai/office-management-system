@@ -1,114 +1,388 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DVD Request Details</title>
+    <title>DVD Request #{{ dvd_request['id'] }} | OMS</title>
 
     <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            color: #1f2937;
+        :root {
+            --navy: #0F172A;
+            --blue: #2563EB;
+            --background: #F5F7FB;
+            --text: #1E293B;
+            --muted: #64748B;
+            --border: #E2E8F0;
         }
 
-        .header {
-            background-color: #1f2937;
-            color: white;
-            padding: 20px 5%;
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .topbar {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            padding: 16px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand {
+            font-size: 15px;
+            font-weight: 750;
+            color: var(--navy);
+        }
+
+        .brand small {
+            display: block;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 400;
+        }
+
+        .back-link {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
         }
 
         .container {
-            width: 90%;
-            max-width: 800px;
-            margin: 30px auto;
+            width: 92%;
+            max-width: 1050px;
+            margin: 32px auto 60px;
+        }
+
+        .hero {
+            background: linear-gradient(115deg, #0F172A, #1E3A8A);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+        }
+
+        .eyebrow {
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            color: #93C5FD;
+        }
+
+        .hero h1 {
+            margin: 8px 0 12px;
+            font-size: 29px;
+            letter-spacing: -0.7px;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            color: #CBD5E1;
+            font-size: 13px;
+        }
+
+        .status {
+            display: inline-block;
+            background: #DBEAFE;
+            color: #1D4ED8;
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat, .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 3px 14px rgba(15,23,42,0.035);
+        }
+
+        .stat { padding: 20px 24px; }
+
+        .stat-label {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+            font-size: 11px;
+        }
+
+        .stat-value {
+            font-size: 30px;
+            font-weight: 750;
+            color: var(--navy);
+            margin-top: 5px;
         }
 
         .card {
-            background: white;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 21px 26px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header h2 {
+            font-size: 17px;
+            margin: 0;
+            color: var(--navy);
+        }
+
+        .card-header p {
+            margin: 3px 0 0;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+            padding: 25px 26px;
+        }
+
+        .detail-label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            font-weight: 650;
+            color: var(--navy);
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            text-align: left;
+        }
+
+        th {
+            background: #F8FAFC;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 16px 20px;
+            border-bottom: 1px solid #F1F5F9;
+            font-size: 13px;
+            vertical-align: top;
+            overflow-wrap: anywhere;
+        }
+
+        tr:last-child td { border-bottom: 0; }
+
+        .qty {
+            font-weight: 700;
+            color: var(--navy);
+        }
+
+        .empty {
             padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+            color: var(--muted);
         }
 
-        .row {
-            margin-bottom: 14px;
+        .table-footer {
+            padding: 18px 24px;
+            background: #F8FAFC;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            font-weight: 700;
+            color: var(--navy);
         }
 
-        .label {
-            font-weight: bold;
+        @media (max-width: 650px) {
+            .container { width: 94%; margin-top: 18px; }
+            .hero { padding: 23px 20px; }
+            .hero h1 { font-size: 23px; }
+            .detail-grid { grid-template-columns: 1fr; gap: 17px; }
+            .stats { gap: 10px; }
+            .stat { padding: 16px; }
+            .stat-value { font-size: 24px; }
+            th, td { padding: 12px; }
+            .topbar { padding: 15px 3%; }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="header">
-        <h1>DVD Request Details</h1>
-    </div>
-
-    <div class="container">
-
-        <div class="card">
-
-            <div class="row">
-                <span class="label">Request ID:</span>
-                {{ dvd_request["id"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">Employee:</span>
-                {{ dvd_request["name"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">PIN:</span>
-                {{ dvd_request["pin"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">Designation:</span>
-                {{ dvd_request["designation_name"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">Organizational Unit:</span>
-                {{ dvd_request["unit_name"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">Extension:</span>
-                {{ dvd_request["extension_number"] or "-" }}
-            </div>
-
-            <div class="row">
-                <span class="label">DVD Category:</span>
-                {{ dvd_request["dvd_category"] }}
-            </div>
-
-            {% if dvd_request["dvd_category"] == "Permanent" %}
-
-            <div class="row">
-                <span class="label">Permanent Source:</span>
-                {{ dvd_request["permanent_source_type"] }}
-            </div>
-
-            {% endif %}
-
-            <div class="row">
-                <span class="label">Status:</span>
-                {{ dvd_request["status"] }}
-            </div>
-
-            <div class="row">
-                <span class="label">Created:</span>
-                {{ dvd_request["created_at"] }}
-            </div>
-
+    <header class="topbar">
+        <div class="brand">
+            Office Management System
+            <small>CD/DVD Operations Portal</small>
         </div>
 
-    </div>
+        <a class="back-link" href="/cd-dvd">
+            &larr; CD/DVD Management
+        </a>
+    </header>
+
+    <main class="container">
+
+        <section class="hero">
+            <div class="eyebrow">DVD Request Overview</div>
+            <h1>DVD Request #{{ dvd_request["id"] }}</h1>
+
+            <div class="hero-meta">
+                <span class="status">
+                    {{ dvd_request["status"] }}
+                </span>
+                <span>{{ dvd_request["dvd_category"] }} DVD</span>
+                <span>Created: {{ dvd_request["created_at"] }}</span>
+            </div>
+        </section>
+
+        {% set total_quantity = dvd_items | sum(attribute='quantity') %}
+
+        <section class="stats">
+            <div class="stat">
+                <div class="stat-label">Request Items</div>
+                <div class="stat-value">{{ dvd_items | length }}</div>
+            </div>
+
+            <div class="stat">
+                <div class="stat-label">Total Quantity</div>
+                <div class="stat-value">{{ total_quantity }}</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Requester Information</h2>
+                <p>Employee identity and organizational details</p>
+            </div>
+
+            <div class="detail-grid">
+                <div>
+                    <div class="detail-label">Employee Name</div>
+                    <div class="detail-value">{{ dvd_request["name"] }}</div>
+                </div>
+
+                <div>
+                    <div class="detail-label">Employee PIN</div>
+                    <div class="detail-value">{{ dvd_request["pin"] }}</div>
+                </div>
+
+                <div>
+                    <div class="detail-label">Designation</div>
+                    <div class="detail-value">{{ dvd_request["designation_name"] }}</div>
+                </div>
+
+                <div>
+                    <div class="detail-label">Organizational Unit</div>
+                    <div class="detail-value">{{ dvd_request["unit_name"] }}</div>
+                </div>
+
+                <div>
+                    <div class="detail-label">Extension</div>
+                    <div class="detail-value">
+                        {{ dvd_request["extension_number"] or "-" }}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="detail-label">DVD Category</div>
+                    <div class="detail-value">{{ dvd_request["dvd_category"] }}</div>
+                </div>
+
+                {% if dvd_request["dvd_category"] == "Permanent" %}
+                <div>
+                    <div class="detail-label">Permanent Source Type</div>
+                    <div class="detail-value">
+                        {{ dvd_request["permanent_source_type"] or "-" }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div>
+                    <div class="detail-label">Request Status</div>
+                    <div class="detail-value">{{ dvd_request["status"] }}</div>
+                </div>
+
+                <div>
+                    <div class="detail-label">Submission Date</div>
+                    <div class="detail-value">{{ dvd_request["created_at"] }}</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Requested DVD Items</h2>
+                <p>Descriptions, quantities and remarks submitted with this request</p>
+            </div>
+
+            {% if dvd_items %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Sr. #</th>
+                            <th>Description / Purpose</th>
+                            <th>Quantity</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in dvd_items %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ item["description"] }}</td>
+                            <td class="qty">{{ item["quantity"] }}</td>
+                            <td>{{ item["remarks"] or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                Total Quantity: {{ total_quantity }}
+            </div>
+            {% else %}
+            <div class="empty">
+                No request items found for this DVD request.
+            </div>
+            {% endif %}
+        </section>
+
+    </main>
 
 </body>
 </html>

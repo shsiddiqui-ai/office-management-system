@@ -799,6 +799,30 @@ def enforce_authentication():
 
     return None
 
+# =================================================
+# CD/DVD - APPROVAL ACCESS PERMISSION HELPER
+# =================================================
+
+def dvd_approval_access_required(view):
+    @wraps(view)
+    def protected(*args, **kwargs):
+
+        allowed_permissions = (
+            "dvd.request.manager_approve",
+            "dvd.request.cyber_review",
+            "dvd.request.technical_process"
+        )
+
+        if not any(
+            account_has_permission(permission)
+            for permission in allowed_permissions
+        ):
+            abort(403)
+
+        return view(*args, **kwargs)
+
+    return protected
+
 def organization_manager_required(view):
     @wraps(view)
     def protected(*args, **kwargs):
@@ -3593,6 +3617,202 @@ def new_dvd_request():
         connection.close()
 
 
+
+
+# =================================================
+# CD/DVD - MY REQUESTS
+# =================================================
+
+
+# =================================================
+# CD/DVD - PENDING APPROVALS (READ ONLY)
+# =================================================
+
+@app.route("/dvd-requests/pending")
+@dvd_approval_access_required
+def pending_dvd_approvals():
+
+    connection = get_db_connection()
+
+    try:
+        account = connection.execute("""
+            SELECT employee_id
+            FROM user_accounts
+            WHERE id = ?
+              AND is_active = 1
+        """, (session["user_account_id"],)).fetchone()
+
+        if account is None:
+            abort(403)
+
+        employee_id = account["employee_id"]
+
+        can_manage = account_has_permission(
+            "dvd.request.manager_approve"
+        )
+        can_cyber = account_has_permission(
+            "dvd.request.cyber_review"
+        )
+        can_it = account_has_permission(
+            "dvd.request.technical_process"
+        )
+
+        # Manager/Head: only their active responsible
+        # Division or Section, excluding own requests.
+        manager_requests = []
+
+        if can_manage:
+            manager_requests = connection.execute("""
+                SELECT DISTINCT
+                    r.id,
+                    r.dvd_category,
+                    r.status,
+                    r.created_at,
+                    e.name AS requester_name,
+                    e.pin AS requester_pin
+                FROM dvd_requests AS r
+                JOIN employees AS e
+                    ON e.id = r.requester_employee_id
+                JOIN employee_location_assignments AS loc
+                    ON loc.employee_id = e.id
+                   AND loc.is_active = 1
+                WHERE r.status = 'Submitted'
+                  AND r.requester_employee_id != ?
+                  AND (
+                    EXISTS (
+                        SELECT 1
+                        FROM division_management_assignments AS m
+                        WHERE m.employee_id = ?
+                          AND m.is_active = 1
+                          AND m.division_id = loc.organizational_unit_id
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM section_head_assignments AS h
+                        WHERE h.employee_id = ?
+                          AND h.is_active = 1
+                          AND h.section_id = loc.section_id
+                    )
+                  )
+                ORDER BY r.id DESC
+            """, (
+                employee_id,
+                employee_id,
+                employee_id
+            )).fetchall()
+
+        # Cyber Security queue opens after Manager approval.
+        cyber_requests = []
+
+        if can_cyber:
+            cyber_requests = connection.execute("""
+                SELECT
+                    r.id,
+                    r.dvd_category,
+                    r.status,
+                    r.created_at,
+                    e.name AS requester_name,
+                    e.pin AS requester_pin
+                FROM dvd_requests AS r
+                JOIN employees AS e
+                    ON e.id = r.requester_employee_id
+                WHERE r.status = 'Manager Approved'
+                  AND r.requester_employee_id != ?
+                ORDER BY r.id DESC
+            """, (employee_id,)).fetchall()
+
+        # IT receives requests after physical SD
+        # approval has been recorded.
+        it_requests = []
+
+        if can_it:
+            it_requests = connection.execute("""
+                SELECT
+                    r.id,
+                    r.dvd_category,
+                    r.status,
+                    r.created_at,
+                    e.name AS requester_name,
+                    e.pin AS requester_pin
+                FROM dvd_requests AS r
+                JOIN employees AS e
+                    ON e.id = r.requester_employee_id
+                WHERE r.status = 'SD Approved'
+                ORDER BY r.id DESC
+            """).fetchall()
+
+    finally:
+        connection.close()
+
+    return render_template(
+        "pending_dvd_approvals.html",
+        manager_requests=manager_requests,
+        cyber_requests=cyber_requests,
+        it_requests=it_requests
+    )
+
+
+@app.route("/dvd-requests/my")
+def my_dvd_requests():
+
+    if not (
+        account_has_permission("dvd.request.view_own")
+        or account_has_permission("dvd.request.view_all")
+    ):
+        abort(403)
+
+    connection = get_db_connection()
+
+    try:
+        account = connection.execute("""
+            SELECT employee_id
+            FROM user_accounts
+            WHERE id = ?
+              AND is_active = 1
+        """, (
+            session["user_account_id"],
+        )).fetchone()
+
+        if account is None:
+            abort(403)
+
+        dvd_requests = connection.execute("""
+            SELECT
+                r.id,
+                r.dvd_category,
+                r.permanent_source_type,
+                r.status,
+                r.created_at,
+                COUNT(i.id) AS item_count,
+                COALESCE(SUM(i.quantity), 0) AS total_quantity
+
+            FROM dvd_requests AS r
+
+            LEFT JOIN dvd_request_items AS i
+                ON i.request_id = r.id
+
+            WHERE r.requester_employee_id = ?
+
+            GROUP BY
+                r.id,
+                r.dvd_category,
+                r.permanent_source_type,
+                r.status,
+                r.created_at
+
+            ORDER BY r.id DESC
+        """, (
+            account["employee_id"],
+        )).fetchall()
+
+    finally:
+        connection.close()
+
+    return render_template(
+        "my_dvd_requests.html",
+        dvd_requests=dvd_requests
+    )
+
 @app.route("/dvd-request/<int:request_id>")
 def dvd_request_details(request_id):
 
@@ -3625,6 +3845,21 @@ def dvd_request_details(request_id):
         WHERE dvd_requests.id = ? AND (dvd_requests.requester_employee_id=? OR ?=1)
     """, (request_id,owner,int(can_view_all))).fetchone()
 
+        # Fetch all items belonging to this DVD request
+    dvd_items = []
+
+    if dvd_request is not None:
+        dvd_items = connection.execute("""
+            SELECT
+                id,
+                description,
+                quantity,
+                remarks
+            FROM dvd_request_items
+            WHERE request_id = ?
+            ORDER BY id ASC
+        """, (request_id,)).fetchall()
+
     connection.close()
 
     if dvd_request is None:
@@ -3632,7 +3867,8 @@ def dvd_request_details(request_id):
 
     return render_template(
         "dvd_request_details.html",
-        dvd_request=dvd_request
+        dvd_request=dvd_request,
+        dvd_items=dvd_items
     )
 
 @app.route(
