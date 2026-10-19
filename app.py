@@ -1001,6 +1001,267 @@ def cd_dvd():
     return render_template("cd_dvd.html")
 
 
+# =================================================
+# ISSUED DVD REGISTER — DEMO, READ ONLY
+# =================================================
+@app.route("/dvd-discs/issued")
+def issued_dvd_register():
+    if not account_has_permission("dvd.request.technical_process"):
+        abort(403)
+    if not session.get("dvd_approval_csrf_token"):
+        session["dvd_approval_csrf_token"] = secrets.token_urlsafe(32)
+    connection = get_db_connection()
+    try:
+        demo_table = connection.execute("""
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='demo_metadata'
+        """).fetchone()
+        marker = (connection.execute(
+            "SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'"
+        ).fetchone() if demo_table else None)
+        if not marker:
+            abort(403)
+        discs = connection.execute("""
+            SELECT d.id, d.number, d.state, d.allocated_at, d.handed_at,
+                   d.request_id, d.generation, d.replacement_pending,
+                   r.dvd_category, e.name AS requester_name, e.pin AS requester_pin
+            FROM dvd_discs AS d
+            JOIN dvd_requests AS r ON r.id=d.request_id
+            JOIN employees AS e ON e.id=r.requester_employee_id
+            WHERE d.handed_at IS NOT NULL
+            ORDER BY d.handed_at DESC, d.id DESC
+            LIMIT 500
+        """).fetchall()
+    finally:
+        connection.close()
+    return render_template("issued_dvds.html", discs=discs)
+
+# DEMO ONLY: faulty -> shredded -> replacement, with atomic audit
+@app.route("/dvd-disc/<int:disc_id>/<operation>", methods=["POST"])
+def demo_dvd_lifecycle(disc_id, operation):
+    import json
+    from datetime import datetime as _datetime
+    if operation not in ("faulty", "shred", "replace"):
+        abort(404)
+    if os.path.basename(app.config["DATABASE"]).lower() != "office_demo.db":
+        abort(403)
+    if not account_has_permission("dvd.request.technical_process"):
+        abort(403)
+    if not request.form.get("csrf_token") or not secrets.compare_digest(
+        request.form["csrf_token"], session.get("dvd_approval_csrf_token", "")
+    ):
+        abort(400)
+    if request.form.get("confirm") != "yes":
+        abort(400)
+    note = request.form.get("reason", "").strip()
+    if len(note) > 300 or (operation == "faulty" and not note):
+        abort(400)
+    connection = get_db_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        exists = connection.execute("""SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='demo_metadata'""").fetchone()
+        if not exists or not connection.execute("""SELECT 1 FROM demo_metadata
+            WHERE marker='OMS_DEMO_V1'""").fetchone():
+            abort(403)
+        actor = connection.execute("""SELECT a.id, e.id employee_id, e.name, e.pin
+            FROM user_accounts a JOIN employees e ON a.employee_id=e.id
+            WHERE a.id=? AND a.is_active=1 AND e.is_active=1""",
+            (session["user_account_id"],)).fetchone()
+        if not actor:
+            abort(403)
+        disc = connection.execute("""SELECT d.*, r.dvd_category,
+            r.status AS request_status, r.requester_employee_id
+            FROM dvd_discs d JOIN dvd_requests r ON r.id=d.request_id
+            WHERE d.id=?""", (disc_id,)).fetchone()
+        if not disc:
+            abort(404)
+        if disc["dvd_category"] not in ("Internal", "Internet") or disc["request_status"] != "Issued":
+            abort(409)
+        if disc["requester_employee_id"] == actor["employee_id"]:
+            abort(403)
+        now = _datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_number = None
+        if operation == "faulty":
+            if disc["state"] != "Issued" or disc["replacement_pending"]:
+                abort(409)
+            changed = connection.execute("""UPDATE dvd_discs
+                SET state='Faulty', replacement_pending=1, notes=?
+                WHERE id=? AND state='Issued' AND replacement_pending=0""",
+                (note, disc_id)).rowcount
+            action = "dvd_marked_faulty"
+        elif operation == "shred":
+            if disc["state"] != "Faulty" or disc["replacement_pending"] != 1:
+                abort(409)
+            changed = connection.execute("""UPDATE dvd_discs
+                SET state='Shredded', shredded_at=?
+                WHERE id=? AND state='Faulty' AND replacement_pending=1""",
+                (now, disc_id)).rowcount
+            action = "dvd_faulty_shredded"
+        else:
+            if disc["state"] != "Shredded" or disc["replacement_pending"] != 1:
+                abort(409)
+            if connection.execute("SELECT 1 FROM dvd_discs WHERE replaces_id=?", (disc_id,)).fetchone():
+                abort(409)
+            category=disc["dvd_category"]; year=_datetime.now().year
+            prefix={"Internal":"INT","Internet":"NET"}[category]
+            counter=connection.execute("""SELECT next_serial FROM dvd_counters
+                WHERE category=? AND year=?""",(category,year)).fetchone()
+            serial=counter["next_serial"] if counter else 1
+            if serial < 1:
+                abort(409)
+            new_number=f"{prefix}-{year}-{serial:06d}"
+            connection.execute("""INSERT INTO dvd_discs
+                (request_id,number,base_number,generation,replaces_id,state,allocated_at,handed_at,notes)
+                VALUES (?,?,?,?,?,'Issued',?,?,?)""",
+                (disc["request_id"],new_number,disc["base_number"],disc["generation"]+1,
+                 disc_id,now,now,"Replacement of "+disc["number"]))
+            if counter:
+                connection.execute("""UPDATE dvd_counters SET next_serial=?
+                    WHERE category=? AND year=?""",(serial+1,category,year))
+            else:
+                connection.execute("""INSERT INTO dvd_counters (category,year,next_serial)
+                    VALUES (?,?,?)""",(category,year,serial+1))
+            changed=connection.execute("""UPDATE dvd_discs
+                SET replacement_pending=0 WHERE id=? AND state='Shredded'
+                AND replacement_pending=1""",(disc_id,)).rowcount
+            action="dvd_replacement_issued"
+        if changed != 1:
+            abort(409)
+        connection.execute("""INSERT INTO dvd_events
+            (request_id,disc_id,actor_account_id,actor_snapshot,action,details)
+            VALUES (?,?,?,?,?,?)""",
+            (disc["request_id"],disc_id,actor["id"],
+             json.dumps({"pin":actor["pin"],"name":actor["name"]}),action,
+             json.dumps({"old_number":disc["number"],"new_number":new_number,"reason":note})))
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect("/dvd-discs/issued")
+
+
+# Demo-only ordinary return and shredding of Internal/Internet DVDs.
+@app.route('/dvd-discs/normal-closure', methods=['GET'])
+def demo_normal_closure_page():
+    if os.path.basename(app.config['DATABASE']).lower() != 'office_demo.db':
+        abort(403)
+    if not account_has_permission('dvd.request.technical_process'):
+        abort(403)
+    import secrets as _secrets
+    if not session.get('dvd_normal_closure_token'):
+        session['dvd_normal_closure_token'] = _secrets.token_urlsafe(32)
+    conn = get_db_connection()
+    try:
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_metadata'").fetchone():
+            abort(403)
+        if not conn.execute("SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'").fetchone():
+            abort(403)
+        discs = conn.execute("""
+            SELECT d.id, d.request_id, d.number, d.state, d.replacement_pending,
+                   d.returned_at, d.shredded_at, d.generation,
+                   r.dvd_category, r.status AS request_status,
+                   e.name AS requester_name, e.pin AS requester_pin
+            FROM dvd_discs d
+            JOIN dvd_requests r ON r.id=d.request_id
+            JOIN employees e ON e.id=r.requester_employee_id
+            WHERE r.dvd_category IN ('Internal','Internet')
+              AND d.state IN ('Issued','Returned','Shredded')
+            ORDER BY d.id DESC LIMIT 500
+        """).fetchall()
+    finally:
+        conn.close()
+    return render_template('dvd_normal_closure.html', discs=discs,
+                           csrf_token=session['dvd_normal_closure_token'])
+
+
+@app.route('/dvd-discs/<int:disc_id>/normal-closure/<operation>', methods=['POST'])
+def demo_normal_closure_action(disc_id, operation):
+    import json as _json
+    import secrets as _secrets
+    if operation not in ('return', 'shred'):
+        abort(404)
+    if os.path.basename(app.config['DATABASE']).lower() != 'office_demo.db':
+        abort(403)
+    if not account_has_permission('dvd.request.technical_process'):
+        abort(403)
+    submitted = request.form.get('csrf_token', '')
+    stored = session.get('dvd_normal_closure_token', '')
+    if not submitted or not stored or not _secrets.compare_digest(submitted, stored):
+        abort(400)
+    if request.form.get('confirmed') != 'yes':
+        abort(400)
+    conn = get_db_connection()
+    try:
+        conn.execute('BEGIN IMMEDIATE')
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_metadata'").fetchone() or not conn.execute("SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'").fetchone():
+            abort(403)
+        actor = conn.execute("""
+            SELECT a.id AS account_id, e.id AS employee_id, e.name, e.pin
+            FROM user_accounts a JOIN employees e ON e.id=a.employee_id
+            WHERE a.id=? AND a.is_active=1 AND e.is_active=1
+        """, (session['user_account_id'],)).fetchone()
+        if not actor:
+            abort(403)
+        disc = conn.execute("""
+            SELECT d.id,d.number,d.request_id,d.state,d.replacement_pending,
+                   r.dvd_category,r.status,r.requester_employee_id
+            FROM dvd_discs d JOIN dvd_requests r ON r.id=d.request_id
+            WHERE d.id=?
+        """, (disc_id,)).fetchone()
+        if not disc:
+            abort(404)
+        if actor['employee_id'] == disc['requester_employee_id']:
+            abort(403)
+        if disc['dvd_category'] not in ('Internal','Internet') or disc['status'] != 'Issued':
+            abort(409)
+        if disc['replacement_pending']:
+            abort(409)
+        if operation == 'return':
+            if disc['state'] != 'Issued':
+                abort(409)
+            change = conn.execute("""
+                UPDATE dvd_discs SET state='Returned',returned_at=CURRENT_TIMESTAMP
+                WHERE id=? AND state='Issued' AND replacement_pending=0
+            """, (disc_id,))
+            action = 'dvd_normal_returned'
+        else:
+            if disc['state'] != 'Returned':
+                abort(409)
+            change = conn.execute("""
+                UPDATE dvd_discs SET state='Shredded',shredded_at=CURRENT_TIMESTAMP
+                WHERE id=? AND state='Returned' AND replacement_pending=0
+            """, (disc_id,))
+            action = 'dvd_normal_shredded'
+        if change.rowcount != 1:
+            abort(409)
+        conn.execute("""
+            INSERT INTO dvd_events(request_id,disc_id,actor_account_id,actor_snapshot,action,details)
+            VALUES (?,?,?,?,?,?)
+        """, (disc['request_id'],disc_id,actor['account_id'],
+              _json.dumps({'name':actor['name'],'pin':actor['pin']}),action,
+              _json.dumps({'number':disc['number'],'demo':True})))
+        if operation == 'shred':
+            remaining = conn.execute("""
+                SELECT COUNT(*) FROM dvd_discs
+                WHERE request_id=? AND (state!='Shredded' OR replacement_pending!=0)
+            """, (disc['request_id'],)).fetchone()[0]
+            if remaining == 0:
+                changed = conn.execute("""
+                    UPDATE dvd_requests SET status='Closed'
+                    WHERE id=? AND status='Issued'
+                """, (disc['request_id'],))
+                if changed.rowcount == 1:
+                    conn.execute("""
+                        INSERT INTO dvd_events(request_id,actor_account_id,actor_snapshot,action,details)
+                        VALUES (?,?,?,?,?)
+                    """, (disc['request_id'],actor['account_id'],
+                          _json.dumps({'name':actor['name'],'pin':actor['pin']}),
+                          'dvd_request_closed',_json.dumps({'demo':True,'reason':'all_discs_shredded'})))
+        conn.commit()
+    finally:
+        conn.close()
+    return redirect('/dvd-discs/normal-closure')
+
 @app.route("/admin")
 def admin_dashboard():
     return render_template("admin.html")
@@ -3737,12 +3998,14 @@ def pending_dvd_approvals():
                 FROM dvd_requests AS r
                 JOIN employees AS e
                     ON e.id = r.requester_employee_id
-                WHERE r.status = 'SD Approved'
+                WHERE r.status IN ('Cyber Approved', 'SD Approved')
                 ORDER BY r.id DESC
             """).fetchall()
 
     finally:
         connection.close()
+
+    session["dvd_approval_csrf_token"] = secrets.token_urlsafe(32)
 
     return render_template(
         "pending_dvd_approvals.html",
@@ -3751,6 +4014,376 @@ def pending_dvd_approvals():
         it_requests=it_requests
     )
 
+
+# =================================================
+# CD/DVD - MANAGER DECISIONS (DEMO ONLY)
+# =================================================
+
+@app.route("/dvd-request/<int:request_id>/manager-decision", methods=["POST"])
+@dvd_approval_access_required
+def manager_dvd_decision(request_id):
+    # Protect the real office database while the workflow is being tested.
+    if os.path.basename(app.config["DATABASE"]).lower() != "office_demo.db":
+        abort(403)
+
+    if not account_has_permission("dvd.request.manager_approve"):
+        abort(403)
+
+    token = request.form.get("csrf_token", "")
+    if not token or not secrets.compare_digest(
+        token, session.get("dvd_approval_csrf_token", "")
+    ):
+        abort(400)
+
+    decision = request.form.get("decision", "")
+    if decision not in ("approve", "reject"):
+        abort(400)
+
+    connection = get_db_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        account = connection.execute("""
+            SELECT employee_id FROM user_accounts
+            WHERE id=? AND is_active=1
+        """, (session["user_account_id"],)).fetchone()
+        if account is None:
+            abort(403)
+
+        actor_id = account["employee_id"]
+        dvd = connection.execute("""
+            SELECT r.id, r.status, r.requester_employee_id,
+                   EXISTS (
+                       SELECT 1 FROM employee_location_assignments AS loc
+                       WHERE loc.employee_id=r.requester_employee_id
+                         AND loc.is_active=1
+                         AND (
+                             EXISTS (
+                                 SELECT 1 FROM division_management_assignments AS m
+                                 WHERE m.employee_id=? AND m.is_active=1
+                                   AND m.division_id=loc.organizational_unit_id
+                             )
+                             OR EXISTS (
+                                 SELECT 1 FROM section_head_assignments AS h
+                                 WHERE h.employee_id=? AND h.is_active=1
+                                   AND h.section_id=loc.section_id
+                             )
+                         )
+                   ) AS responsible
+            FROM dvd_requests AS r WHERE r.id=?
+        """, (actor_id, actor_id, request_id)).fetchone()
+
+        if dvd is None:
+            abort(404)
+        if (dvd["requester_employee_id"] == actor_id
+                or not dvd["responsible"]):
+            abort(403)
+        if dvd["status"] != "Submitted":
+            abort(409)
+
+        # Audit table is introduced safely and only on the fictional demo DB.
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS dvd_approval_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                request_id INTEGER NOT NULL,
+                actor_employee_id INTEGER NOT NULL,
+                stage TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                from_status TEXT NOT NULL,
+                to_status TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(request_id) REFERENCES dvd_requests(id),
+                FOREIGN KEY(actor_employee_id) REFERENCES employees(id)
+            )
+        """)
+        new_status = "Manager Approved" if decision == "approve" else "Manager Rejected"
+        changed = connection.execute("""
+            UPDATE dvd_requests SET status=?
+            WHERE id=? AND status='Submitted'
+        """, (new_status, request_id))
+        if changed.rowcount != 1:
+            abort(409)
+        connection.execute("""
+            INSERT INTO dvd_approval_history
+            (request_id,actor_employee_id,stage,decision,from_status,to_status)
+            VALUES (?,?,'Manager',?,'Submitted',?)
+        """, (request_id, actor_id, decision, new_status))
+        connection.commit()
+    finally:
+        connection.close()
+
+    return redirect("/dvd-requests/pending")
+
+# =================================================
+# CD/DVD - CYBER SECURITY DECISIONS (DEMO ONLY)
+# =================================================
+
+@app.route("/dvd-request/<int:request_id>/cyber-decision", methods=["POST"])
+@dvd_approval_access_required
+def cyber_dvd_decision(request_id):
+    # Never enable through filename alone: validate marker inside demo DB.
+    if os.path.basename(app.config["DATABASE"]).lower() != "office_demo.db":
+        abort(403)
+    if not account_has_permission("dvd.request.cyber_review"):
+        abort(403)
+
+    token = request.form.get("csrf_token", "")
+    if not token or not secrets.compare_digest(
+        token, session.get("dvd_approval_csrf_token", "")
+    ):
+        abort(400)
+    decision = request.form.get("decision", "")
+    if decision not in ("approve", "reject"):
+        abort(400)
+
+    connection = get_db_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        marker_table = connection.execute("""
+            SELECT 1 FROM sqlite_master WHERE type='table' AND name='demo_metadata'
+        """).fetchone()
+        if not marker_table or not connection.execute("""
+            SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'
+        """).fetchone():
+            abort(403)
+
+        account = connection.execute("""
+            SELECT employee_id FROM user_accounts
+            WHERE id=? AND is_active=1
+        """, (session["user_account_id"],)).fetchone()
+        if account is None:
+            abort(403)
+        actor_id = account["employee_id"]
+
+        dvd = connection.execute("""
+            SELECT requester_employee_id, status FROM dvd_requests WHERE id=?
+        """, (request_id,)).fetchone()
+        if dvd is None:
+            abort(404)
+        if dvd["requester_employee_id"] == actor_id:
+            abort(403)
+        if dvd["status"] != 'Manager Approved':
+            abort(409)
+
+        # History table was created by the demo Manager decision flow.
+        table = connection.execute("""
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='dvd_approval_history'
+        """).fetchone()
+        if table is None:
+            abort(409)
+
+        new_status = ('Cyber Approved' if decision == 'approve'
+                      else 'Cyber Rejected')
+        changed = connection.execute("""
+            UPDATE dvd_requests SET status=?
+            WHERE id=? AND status='Manager Approved'
+        """, (new_status, request_id))
+        if changed.rowcount != 1:
+            abort(409)
+        connection.execute("""
+            INSERT INTO dvd_approval_history
+                (request_id,actor_employee_id,stage,decision,from_status,to_status)
+            VALUES (?,?,'Cyber Security',?,'Manager Approved',?)
+        """, (request_id, actor_id, decision, new_status))
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect('/dvd-requests/pending')
+
+# =================================================
+# CD/DVD - RECORD PHYSICAL SD SIGNATURE (DEMO ONLY)
+# =================================================
+
+@app.route("/dvd-request/<int:request_id>/sd-paper-verified", methods=["POST"])
+@dvd_approval_access_required
+def record_sd_paper_verification(request_id):
+    # This is NOT a digital SD approval. IT staff records that a
+    # physically signed paper form was checked before IT processing.
+    if os.path.basename(app.config["DATABASE"]).lower() != "office_demo.db":
+        abort(403)
+    if not account_has_permission("dvd.request.technical_process"):
+        abort(403)
+
+    token = request.form.get("csrf_token", "")
+    if not token or not secrets.compare_digest(
+        token, session.get("dvd_approval_csrf_token", "")
+    ):
+        abort(400)
+    if request.form.get("paper_checked") != "yes":
+        abort(400)
+
+    connection = get_db_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        has_demo_table = connection.execute("""
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='demo_metadata'
+        """).fetchone()
+        if not has_demo_table or not connection.execute("""
+            SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'
+        """).fetchone():
+            abort(403)
+        account = connection.execute("""
+            SELECT employee_id FROM user_accounts
+            WHERE id=? AND is_active=1
+        """, (session["user_account_id"],)).fetchone()
+        if account is None:
+            abort(403)
+        actor_id = account["employee_id"]
+        dvd = connection.execute("""
+            SELECT requester_employee_id, status
+            FROM dvd_requests WHERE id=?
+        """, (request_id,)).fetchone()
+        if dvd is None:
+            abort(404)
+        if dvd["requester_employee_id"] == actor_id:
+            abort(403)
+        if dvd["status"] != "Cyber Approved":
+            abort(409)
+        if not connection.execute("""
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='dvd_approval_history'
+        """).fetchone():
+            abort(409)
+        changed = connection.execute("""
+            UPDATE dvd_requests SET status='SD Approved'
+            WHERE id=? AND status='Cyber Approved'
+        """, (request_id,))
+        if changed.rowcount != 1:
+            abort(409)
+        connection.execute("""
+            INSERT INTO dvd_approval_history
+                (request_id, actor_employee_id, stage, decision,
+                 from_status, to_status)
+            VALUES (?, ?, 'Physical SD Form Verification',
+                    'paper_verified', 'Cyber Approved', 'SD Approved')
+        """, (request_id, actor_id))
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect('/dvd-requests/pending')
+
+# =================================================
+# CD/DVD - IT ISSUE ALL REQUESTED DISCS (DEMO ONLY)
+# =================================================
+
+@app.route("/dvd-request/<int:request_id>/issue-discs", methods=["POST"])
+@dvd_approval_access_required
+def issue_demo_dvds(request_id):
+    # Demo feature, not approved for production.
+    if os.path.basename(app.config["DATABASE"]).lower() != "office_demo.db":
+        abort(403)
+    if not account_has_permission("dvd.request.technical_process"):
+        abort(403)
+    token = request.form.get("csrf_token", "")
+    if not token or not secrets.compare_digest(
+        token, session.get("dvd_approval_csrf_token", "")
+    ):
+        abort(400)
+    if request.form.get("confirm_issue") != "yes":
+        abort(400)
+
+    connection = get_db_connection()
+    try:
+        # Lock before checking status/counters: two clicks cannot issue twice.
+        connection.execute("BEGIN IMMEDIATE")
+        marker = connection.execute("""
+            SELECT 1 FROM sqlite_master
+            WHERE type='table' AND name='demo_metadata'
+        """).fetchone()
+        if not marker or not connection.execute("""
+            SELECT 1 FROM demo_metadata WHERE marker='OMS_DEMO_V1'
+        """).fetchone():
+            abort(403)
+        actor = connection.execute("""
+            SELECT a.id AS account_id, e.id AS employee_id,
+                   e.name, e.pin
+            FROM user_accounts a JOIN employees e ON e.id=a.employee_id
+            WHERE a.id=? AND a.is_active=1 AND e.is_active=1
+        """, (session["user_account_id"],)).fetchone()
+        if actor is None:
+            abort(403)
+        dvd = connection.execute("""
+            SELECT requester_employee_id, dvd_category, status
+            FROM dvd_requests WHERE id=?
+        """, (request_id,)).fetchone()
+        if dvd is None:
+            abort(404)
+        if dvd["requester_employee_id"] == actor["employee_id"]:
+            abort(403)
+        if dvd["status"] != "SD Approved":
+            abort(409)
+        if connection.execute("""
+            SELECT 1 FROM dvd_discs WHERE request_id=? LIMIT 1
+        """, (request_id,)).fetchone():
+            abort(409)
+        items = connection.execute("""
+            SELECT quantity FROM dvd_request_items WHERE request_id=?
+        """, (request_id,)).fetchall()
+        quantity = sum(item["quantity"] for item in items)
+        if not items or quantity < 1 or quantity > 20000:
+            abort(409)
+
+        # Counter format is a DEMO convention, not a final office policy.
+        import json
+        from datetime import datetime as _datetime
+        year = _datetime.now().year
+        category = dvd["dvd_category"]
+        prefix = {
+            "Internal": "INT", "Internet": "NET",
+            "External": "EXT", "Vendor": "VEN",
+            "Outward": "OUT", "Permanent": "PER",
+        }.get(category)
+        if prefix is None:
+            abort(409)
+        counter = connection.execute("""
+            SELECT next_serial FROM dvd_counters
+            WHERE category=? AND year=?
+        """, (category, year)).fetchone()
+        serial = counter["next_serial"] if counter else 1
+        if serial < 1:
+            abort(409)
+        allocated_at = _datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for number in range(serial, serial + quantity):
+            disc_no = f"{prefix}-{year}-{number:06d}"
+            connection.execute("""
+                INSERT INTO dvd_discs
+                    (request_id, number, base_number, generation,
+                     state, allocated_at, handed_at)
+                VALUES (?, ?, ?, 0, 'Issued', ?, ?)
+            """, (request_id, disc_no, disc_no,
+                  allocated_at, allocated_at))
+        if counter:
+            connection.execute("""
+                UPDATE dvd_counters SET next_serial=?
+                WHERE category=? AND year=?
+            """, (serial + quantity, category, year))
+        else:
+            connection.execute("""
+                INSERT INTO dvd_counters(category, year, next_serial)
+                VALUES (?, ?, ?)
+            """, (category, year, serial + quantity))
+        changed = connection.execute("""
+            UPDATE dvd_requests SET status='Issued'
+            WHERE id=? AND status='SD Approved'
+        """, (request_id,))
+        if changed.rowcount != 1:
+            abort(409)
+        connection.execute("""
+            INSERT INTO dvd_events
+                (request_id, actor_account_id, actor_snapshot, action, details)
+            VALUES (?, ?, ?, 'dvd_issued', ?)
+        """, (
+            request_id, actor["account_id"],
+            json.dumps({"pin": actor["pin"], "name": actor["name"]}),
+            json.dumps({"quantity": quantity, "category": category,
+                        "first_number": f"{prefix}-{year}-{serial:06d}",
+                        "last_number": f"{prefix}-{year}-{serial+quantity-1:06d}"}),
+        ))
+        connection.commit()
+    finally:
+        connection.close()
+    return redirect(f"/dvd-request/{request_id}")
 
 @app.route("/dvd-requests/my")
 def my_dvd_requests():
@@ -3815,60 +4448,86 @@ def my_dvd_requests():
 
 @app.route("/dvd-request/<int:request_id>")
 def dvd_request_details(request_id):
-
+    """Owners and role-scoped pending reviewers can view request details."""
     connection = get_db_connection()
+    try:
+        account = connection.execute("""
+            SELECT employee_id FROM user_accounts
+            WHERE id = ? AND is_active = 1
+        """, (session["user_account_id"],)).fetchone()
+        if account is None:
+            abort(403)
 
-    owner = connection.execute("SELECT employee_id FROM user_accounts WHERE id=?", (session["user_account_id"],)).fetchone()[0]
-    can_view_all = account_has_permission("dvd.request.view_all")
-    if not can_view_all and not account_has_permission("dvd.request.view_own"):
-        connection.close()
-        abort(403)
-    dvd_request = connection.execute("""
-        SELECT
-            dvd_requests.id,
-            dvd_requests.dvd_category,
-            dvd_requests.permanent_source_type,
-            dvd_requests.status,
-            dvd_requests.created_at,
-            employees.pin,
-            employees.name,
-            employees.extension_number,
-            designations.name AS designation_name,
-            organizational_units.name AS unit_name
-        FROM dvd_requests
-        JOIN employees
-            ON dvd_requests.requester_employee_id = employees.id
-        JOIN designations
-            ON employees.designation_id = designations.id
-        JOIN organizational_units
-            ON employees.organizational_unit_id = organizational_units.id
-        WHERE dvd_requests.id = ? AND (dvd_requests.requester_employee_id=? OR ?=1)
-    """, (request_id,owner,int(can_view_all))).fetchone()
+        employee_id = account["employee_id"]
+        can_view_all = account_has_permission("dvd.request.view_all")
+        can_view_own = account_has_permission("dvd.request.view_own")
+        can_manage = account_has_permission("dvd.request.manager_approve")
+        can_cyber = account_has_permission("dvd.request.cyber_review")
+        can_it = account_has_permission("dvd.request.technical_process")
 
-        # Fetch all items belonging to this DVD request
-    dvd_items = []
+        access = connection.execute("""
+            SELECT r.requester_employee_id, r.status,
+                EXISTS (
+                    SELECT 1 FROM employee_location_assignments AS loc
+                    WHERE loc.employee_id = r.requester_employee_id
+                      AND loc.is_active = 1
+                      AND (
+                          EXISTS (
+                              SELECT 1 FROM division_management_assignments AS m
+                              WHERE m.employee_id = ? AND m.is_active = 1
+                                AND m.division_id = loc.organizational_unit_id
+                          ) OR EXISTS (
+                              SELECT 1 FROM section_head_assignments AS h
+                              WHERE h.employee_id = ? AND h.is_active = 1
+                                AND h.section_id = loc.section_id
+                          )
+                      )
+                ) AS manager_responsible
+            FROM dvd_requests AS r WHERE r.id = ?
+        """, (employee_id, employee_id, request_id)).fetchone()
+        if access is None:
+            abort(404)
 
-    if dvd_request is not None:
-        dvd_items = connection.execute("""
+        is_owner = access["requester_employee_id"] == employee_id
+        allowed = (
+            can_view_all
+            or (can_view_own and is_owner)
+            or (not is_owner and (
+                (can_manage and access["status"] == "Submitted"
+                 and access["manager_responsible"])
+                or (can_cyber and access["status"] == "Manager Approved")
+                or (can_it and access["status"] in ("Cyber Approved", "SD Approved"))
+            ))
+        )
+        if not allowed:
+            abort(403)
+
+        dvd_request = connection.execute("""
             SELECT
-                id,
-                description,
-                quantity,
-                remarks
-            FROM dvd_request_items
-            WHERE request_id = ?
-            ORDER BY id ASC
+                dvd_requests.id, dvd_requests.dvd_category,
+                dvd_requests.permanent_source_type, dvd_requests.status,
+                dvd_requests.created_at, employees.pin, employees.name,
+                employees.extension_number,
+                designations.name AS designation_name,
+                organizational_units.name AS unit_name
+            FROM dvd_requests
+            JOIN employees ON dvd_requests.requester_employee_id = employees.id
+            JOIN designations ON employees.designation_id = designations.id
+            JOIN organizational_units ON employees.organizational_unit_id = organizational_units.id
+            WHERE dvd_requests.id = ?
+        """, (request_id,)).fetchone()
+        if dvd_request is None:
+            abort(404)
+
+        dvd_items = connection.execute("""
+            SELECT id, description, quantity, remarks
+            FROM dvd_request_items WHERE request_id = ? ORDER BY id ASC
         """, (request_id,)).fetchall()
-
-    connection.close()
-
-    if dvd_request is None:
-        return "DVD request not found", 404
+    finally:
+        connection.close()
 
     return render_template(
-        "dvd_request_details.html",
-        dvd_request=dvd_request,
-        dvd_items=dvd_items
+        "dvd_request_details.html", dvd_request=dvd_request, dvd_items=dvd_items
     )
 
 @app.route(

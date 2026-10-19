@@ -230,7 +230,7 @@
         {% set queues = [
             ("Manager Approval Queue", "Requests awaiting responsible Manager or Head approval.", manager_requests),
             ("Cyber Security Review Queue", "Requests awaiting Cyber Security authorization.", cyber_requests),
-            ("IT Processing Queue", "Requests ready for technical processing after physical SD approval.", it_requests)
+            ("IT Processing Queue", "Cyber-approved requests awaiting physical SD form verification, and verified requests ready for IT processing.", it_requests)
         ] %}
 
         {% for heading, description, requests in queues %}
@@ -268,6 +268,40 @@
                                    href="/dvd-request/{{ dvd['id'] }}">
                                     View Details &rarr;
                                 </a>
+                                {% if heading == "Manager Approval Queue" %}
+                                <form method="post" action="/dvd-request/{{ dvd['id'] }}/manager-decision" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+                                    <input type="hidden" name="csrf_token" value="{{ session['dvd_approval_csrf_token'] }}">
+                                    <button type="submit" name="decision" value="approve" onclick="return confirm('Approve this request?')">Approve</button>
+                                    <button type="submit" name="decision" value="reject" onclick="return confirm('Reject this request?')">Reject</button>
+                                </form>
+                                {% endif %}
+                                {% if heading == "IT Processing Queue" and dvd['status'] == 'Cyber Approved' %}
+                                <form method="post" action="/dvd-request/{{ dvd['id'] }}/sd-paper-verified" style="margin-top:10px">
+                                    <input type="hidden" name="csrf_token" value="{{ session['dvd_approval_csrf_token'] }}">
+                                    <label style="display:block;font-size:12px;margin-bottom:7px">
+                                        <input type="checkbox" name="paper_checked" value="yes" required>
+                                        I have inspected the physically signed SD form.
+                                    </label>
+                                    <button type="submit" onclick="return confirm('Confirm physical SD signature was checked?')">Record Physical Verification</button>
+                                </form>
+                                {% endif %}
+                                {% if heading == "IT Processing Queue" and dvd['status'] == 'SD Approved' %}
+                                <form method="post" action="/dvd-request/{{ dvd['id'] }}/issue-discs" style="margin-top:10px">
+                                    <input type="hidden" name="csrf_token" value="{{ session['dvd_approval_csrf_token'] }}">
+                                    <label style="display:block;font-size:12px;margin-bottom:7px">
+                                        <input type="checkbox" name="confirm_issue" value="yes" required>
+                                        I confirm the requested physical DVDs are handed over.
+                                    </label>
+                                    <button type="submit" onclick="return confirm('Issue all requested discs now?')">Issue DVDs</button>
+                                </form>
+                                {% endif %}
+                                {% if heading == "Cyber Security Review Queue" %}
+                                <form method="post" action="/dvd-request/{{ dvd['id'] }}/cyber-decision" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+                                    <input type="hidden" name="csrf_token" value="{{ session['dvd_approval_csrf_token'] }}">
+                                    <button type="submit" name="decision" value="approve" onclick="return confirm('Cyber Security: approve this request?')">Approve</button>
+                                    <button type="submit" name="decision" value="reject" onclick="return confirm('Cyber Security: reject this request?')">Reject</button>
+                                </form>
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}
@@ -283,10 +317,10 @@
         {% endfor %}
 
         <div class="notice">
-            <strong>Read-only stage:</strong>
-            Approval and rejection actions are not enabled yet.
-            Senior Director approval will remain a physical process.
-            Only verified, authorized actions will update request status.
+            <strong>Development stage:</strong>
+            Manager approval/rejection is enabled for the fictional demo database only.
+            Manager and Cyber Security decisions are enabled for the fictional demo database only. Physical SD form verification is now enabled for authorized demo IT staff; DVD issuance is not yet implemented.
+            Senior Director approval remains a physical process.
         </div>
     </main>
 </body>

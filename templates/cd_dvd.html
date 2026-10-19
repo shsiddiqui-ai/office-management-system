@@ -411,12 +411,11 @@
                             <path d="m9 12 2 2 4-4"/>
                         </svg>
                     </div>
-                    <span class="tag tag-planned">Planned</span>
+                    <span class="tag tag-live">Available</span>
                 </div>
                 <h3>Pending Approvals</h3>
                 <p>Review media requests awaiting Manager and CS Head approval.</p>
-                <span class="card-action action-disabled"
-                      aria-disabled="true">Coming Soon</span>
+                <a class="card-action action-primary" href="/dvd-requests/pending">View Pending Approvals &rarr;</a>
             </article>
 
             <!-- 4. ISSUED DVDS -->
@@ -433,10 +432,7 @@
                 </div>
                 <h3>Issued DVDs</h3>
                 <p>Track media issued by IT and manage active issuance records.</p>
-                <a class="card-action action-primary"
-   href="{{ url_for('pending_dvd_approvals') }}">
-    View Pending Approvals &rarr;
-</a>
+                <a class="card-action action-primary" href="/dvd-discs/issued">View Issued DVDs &rarr;</a>
             </article>
 
             <!-- 5. FAULTY / REPLACEMENT -->
@@ -448,12 +444,11 @@
                             <path d="M5.5 9A7 7 0 0 1 18 7l2 5M4 12l2 5a7 7 0 0 0 12.5-2"/>
                         </svg>
                     </div>
-                    <span class="tag tag-planned">Planned</span>
+                    <span class="tag tag-live">Available</span>
                 </div>
                 <h3>Faulty / Replacement</h3>
                 <p>Manage faulty media and eligible Internal or Internet replacements.</p>
-                <span class="card-action action-disabled"
-                      aria-disabled="true">Coming Soon</span>
+                <a class="card-action action-primary" href="/dvd-discs/issued">View Faulty / Replacement →</a>
             </article>
 
             <!-- 6. SHREDDING / DISPOSAL -->
@@ -465,12 +460,11 @@
                             <path d="M10 11v6M14 11v6"/>
                         </svg>
                     </div>
-                    <span class="tag tag-planned">Planned</span>
+                    <span class="tag tag-live">Available</span>
                 </div>
                 <h3>Shredding / Disposal</h3>
                 <p>Track secure shredding, disposal and media lifecycle closure.</p>
-                <span class="card-action action-disabled"
-                      aria-disabled="true">Coming Soon</span>
+                <a class="card-action action-primary" href="/dvd-discs/normal-closure">View Return / Shredding →</a>
             </article>
 
         </section>

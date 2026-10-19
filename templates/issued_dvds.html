@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Issued DVDs | Office Management System</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#0f172a;background:#f5f7fb}
+*{box-sizing:border-box}body{margin:0}header{padding:18px 5%;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+a{color:#2563eb;text-decoration:none}main{width:92%;max-width:1170px;margin:30px auto}
+.hero{background:linear-gradient(110deg,#0f172a,#1e3a8a);color:white;border-radius:16px;padding:30px}.hero h1{margin:0 0 8px}.hero p{margin:0;color:#cbd5e1}
+.card{margin-top:22px;border-radius:14px;overflow:hidden;background:white;border:1px solid #e2e8f0}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;text-align:left}th,td{padding:15px 16px;border-bottom:1px solid #e2e8f0;white-space:nowrap;font-size:13px}th{background:#f8fafc;color:#475569}tr:last-child td{border:0}.muted{color:#64748b}.empty{padding:26px}.pill{display:inline-block;border-radius:20px;background:#dbeafe;color:#1d4ed8;padding:5px 10px;font-size:11px;font-weight:bold}
+form{white-space:normal;min-width:215px}button{background:#2563eb;color:#fff;border:0;border-radius:6px;padding:7px;cursor:pointer}input[name=reason]{max-width:160px;padding:7px;border:1px solid #cbd5e1}</style></head><body>
+<header><strong>Office Management System · Demo DVD Register</strong><a href="/cd-dvd">← CD/DVD Management</a></header>
+<main><section class="hero"><h1>Issued DVDs</h1><p>Issued media and demo-only faulty/replacement workflow, latest 500 discs.</p></section>
+<div class="card"><div class="scroll">
+{% if discs %}<table><thead><tr><th>DVD Number</th><th>Request</th><th>Requester</th><th>PIN</th><th>Category</th><th>State</th><th>Handed Over</th><th>Generation</th><th>Lifecycle action</th></tr></thead><tbody>
+{% for d in discs %}<tr><td><strong>{{ d['number'] }}</strong></td><td><a href="/dvd-request/{{ d['request_id'] }}">#{{ d['request_id'] }}</a></td><td>{{ d['requester_name'] }}</td><td>{{ d['requester_pin'] }}</td><td>{{ d['dvd_category'] }}</td><td><span class="pill">{{ d['state'] }}</span></td><td>{{ d['handed_at'] }}</td><td>{{ d['generation'] }}</td><td>
+{% if d['dvd_category'] in ('Internal','Internet') %}
+{% if d['state']=='Issued' and not d['replacement_pending'] %}
+<form method="post" action="/dvd-disc/{{ d['id'] }}/faulty">
+<input type="hidden" name="csrf_token" value="{{ session.get('dvd_approval_csrf_token','') }}">
+<input type="hidden" name="confirm" value="yes">
+<input name="reason" maxlength="300" required placeholder="Fault reason">
+<button type="submit">Mark Faulty</button></form>
+{% elif d['state']=='Faulty' and d['replacement_pending'] %}
+<form method="post" action="/dvd-disc/{{ d['id'] }}/shred">
+<input type="hidden" name="csrf_token" value="{{ session.get('dvd_approval_csrf_token','') }}">
+<label><input type="checkbox" name="confirm" value="yes" required> Simulated physical shred completed</label>
+<button type="submit">Record Shred</button></form>
+{% elif d['state']=='Shredded' and d['replacement_pending'] %}
+<form method="post" action="/dvd-disc/{{ d['id'] }}/replace">
+<input type="hidden" name="csrf_token" value="{{ session.get('dvd_approval_csrf_token','') }}">
+<label><input type="checkbox" name="confirm" value="yes" required> Simulated replacement handed over</label>
+<button type="submit">Issue Replacement</button></form>
+{% else %}—{% endif %}
+{% else %}Not eligible{% endif %}
+</td></tr>{% endfor %}</tbody></table>
+{% else %}<p class="empty muted">No issued discs found.</p>{% endif %}</div></div>
+<p class="muted">Fictional local demo only. A faulty Internal/Internet DVD must be shredded before replacement. Do not use on live office records.</p></main></body></html>

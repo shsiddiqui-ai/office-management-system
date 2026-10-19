@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Normal Return & Shredding | OMS Demo</title>
+<style>body{font:14px Segoe UI,Arial,sans-serif;background:#f4f7fc;color:#15223a;margin:0}header{padding:18px 5%;background:#142b63;color:white}header a{color:white}main{max-width:1250px;margin:30px auto;padding:0 20px}.notice{background:#fff2c9;padding:14px;border-radius:10px}table{border-collapse:collapse;width:100%;background:white}th,td{border-bottom:1px solid #e3e7ee;padding:13px;text-align:left}th{background:#e9eef8}button{background:#2563eb;border:0;color:white;padding:9px;border-radius:6px;cursor:pointer}form{min-width:180px}label{display:block;margin-bottom:8px}.muted{color:#64748b}</style>
+</head><body><header><strong>DEMO · Normal DVD Return & Shredding</strong> &nbsp; <a href="/cd-dvd">← CD/DVD Dashboard</a></header>
+<main><h1>Normal Return / Shredding</h1><p class="notice">Fictional demo only. This page supports Internal and Internet DVDs, not faulty replacements or other categories. Confirm the simulated physical action before recording it.</p>
+<div style="overflow:auto"><table><thead><tr><th>DVD</th><th>Request</th><th>Requester</th><th>Category</th><th>DVD State</th><th>Request Status</th><th>Action</th></tr></thead><tbody>
+{% for d in discs %}<tr><td><strong>{{ d['number'] }}</strong><div class="muted">Generation {{ d['generation'] }}</div></td><td>#{{ d['request_id'] }}</td><td>{{ d['requester_name'] }} ({{ d['requester_pin'] }})</td><td>{{ d['dvd_category'] }}</td><td>{{ d['state'] }}</td><td>{{ d['request_status'] }}</td><td>
+{% if d['request_status'] == 'Issued' and not d['replacement_pending'] and d['state'] in ('Issued','Returned') %}
+<form method="post" action="/dvd-discs/{{ d['id'] }}/normal-closure/{{ 'return' if d['state']=='Issued' else 'shred' }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label><input type="checkbox" name="confirmed" value="yes" required> I confirm {{ 'DVD returned (demo)' if d['state']=='Issued' else 'physical shredding completed (demo)' }}</label>
+<button type="submit">{{ 'Record Return' if d['state']=='Issued' else 'Record Shredding' }}</button></form>
+{% else %}—{% endif %}</td></tr>
+{% else %}<tr><td colspan="7">No DVDs found.</td></tr>{% endfor %}
+</tbody></table></div><p class="muted">When all DVDs under an Internal/Internet request are shredded and no replacement is pending, the request automatically closes.</p></main></body></html>
