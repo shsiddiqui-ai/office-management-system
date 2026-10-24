@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Accounts | OMS</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#14203c;background:#f3f6fb}body{margin:0}header{background:#162a5e;color:white;padding:22px 6%}main{max-width:1080px;margin:30px auto;padding:0 18px}a{color:#194ca8}section{background:white;padding:24px;border-radius:12px;margin-bottom:22px;box-shadow:0 2px 12px #15234a12}h1,h2{margin-top:0}form{display:flex;gap:12px;flex-wrap:wrap;align-items:end}label{display:flex;flex-direction:column;gap:6px;font-weight:bold}input{padding:11px;border:1px solid #c7cddd;border-radius:6px}button{padding:12px 18px;background:#215ad7;color:white;border:0;border-radius:7px;cursor:pointer}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:11px;text-align:left;border-bottom:1px solid #e3e8f1}th{background:#f2f6ff}.scroll{overflow:auto}.error{color:#a11}.success{color:#176b3a}.note{color:#52627f}
+</style></head><body><header><h2>Office Management System</h2><a style="color:white" href="/admin">← Back to Administration</a></header>
+<main><section><h1>User Accounts</h1><p class="note">Create a login for an existing active employee. New accounts receive only the Employee software role. Role management will be added separately.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if request.args.get("status_updated") == "1" %}<p class="success">Account status updated.</p>{% endif %}
+{% if created %}<p class="success">Login account created successfully. Employee must change password at first login.</p>{% endif %}
+<form method="post" action="/admin/accounts">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label>Employee PIN <input name="pin" required inputmode="numeric" autocomplete="off"></label>
+<label>Temporary password (12+ characters) <input name="temporary_password" type="password" minlength="12" required autocomplete="new-password"></label>
+<button type="submit">Create Employee Login</button></form></section>
+<section><h2>Employee accounts</h2><div class="scroll"><table><thead><tr><th>PIN</th><th>Name</th><th>Employee</th><th>Login</th><th>Active roles</th><th>First login reset</th><th>Account control</th></tr></thead><tbody>
+{% for item in accounts %}<tr><td>{{ item['pin'] }}</td><td>{{ item['name'] }}</td><td>{{ 'Active' if item['employee_active'] else 'Inactive' }}</td><td>{{ 'No login' if item['account_id'] is none else ('Active' if item['account_active'] else 'Disabled') }}</td><td>{{ item['roles'] or '—' }}{% if item['account_id'] is not none %} <a href="/admin/accounts/{{ item['account_id'] }}/roles">Manage roles →</a>{% endif %}</td><td>{{ 'Yes' if item['must_change_password'] else 'No' if item['account_id'] is not none else '—' }}</td><td>{% if item['account_id'] is none %}—{% elif item['pin'] == '9900001' or 'Super Admin' in (item['roles'] or '').split(', ') %}Protected{% else %}
+<form method="post" action="/admin/accounts/{{ item['account_id'] }}/status" onsubmit="return confirm('Change login access for this employee?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+{% if item['account_active'] %}<input type="hidden" name="action" value="disable"><button type="submit" style="background:#a52a3b">Disable</button>
+{% else %}<input type="hidden" name="action" value="enable"><button type="submit">Enable</button>{% endif %}
+</form>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></section></main></body></html>

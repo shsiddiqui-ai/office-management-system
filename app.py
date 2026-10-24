@@ -684,6 +684,8 @@ def change_password():
 
 ADMIN_ENDPOINT_PERMISSIONS = {
     "admin_dashboard": "dashboard.view",
+    "manage_user_accounts": "accounts.manage",
+    "set_login_account_status": "accounts.manage",
     "organization_hierarchy": "organization.view",
     "manage_units": "organization.view",
     "manage_designations": "organization.view",
@@ -5541,3 +5543,235 @@ def end_post_assignment(assignment_id):
     connection.close()
 
     return redirect("/admin/posts")
+
+# =================================================
+# ADMIN - USER ACCOUNTS (STEP 1)
+# =================================================
+@app.route("/admin/accounts", methods=["GET", "POST"])
+def manage_user_accounts():
+    if not account_has_permission("accounts.manage"):
+        abort(403)
+
+    token = session.setdefault("account_admin_csrf_token", secrets.token_urlsafe(32))
+    error = None
+    success = None
+
+    if request.method == "POST":
+        submitted = request.form.get("csrf_token", "")
+        if not submitted or not secrets.compare_digest(submitted, token):
+            abort(400)
+        pin = request.form.get("pin", "").strip()
+        password = request.form.get("temporary_password", "")
+        if not pin.isdigit():
+            error = "Enter a valid numeric employee PIN."
+        elif len(password) < 12:
+            error = "Temporary password must have at least 12 characters."
+        else:
+            with closing(get_db_connection()) as conn:
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    emp = conn.execute("""
+                        SELECT e.id, e.name, e.is_active, u.id AS account_id
+                        FROM employees e LEFT JOIN user_accounts u ON u.employee_id=e.id
+                        WHERE e.pin=?
+                    """, (pin,)).fetchone()
+                    role = conn.execute("""
+                        SELECT id FROM system_roles
+                        WHERE name='Employee' AND is_active=1
+                    """).fetchone()
+                    if emp is None or emp["is_active"] != 1:
+                        error = "Active employee not found."
+                    elif emp["account_id"] is not None:
+                        error = "This employee already has a login account."
+                    elif role is None:
+                        error = "Employee system role not available."
+                    else:
+                        cursor = conn.execute("""
+                            INSERT INTO user_accounts
+                              (employee_id, password_hash, must_change_password)
+                            VALUES (?, ?, 1)
+                        """, (emp["id"], generate_password_hash(password)))
+                        conn.execute("""
+                            INSERT INTO user_role_assignments
+                              (user_account_id, system_role_id, assigned_by_user_account_id)
+                            VALUES (?, ?, ?)
+                        """, (cursor.lastrowid, role["id"], session["user_account_id"]))
+                        conn.commit()
+                        return redirect("/admin/accounts?created=1")
+                    conn.rollback()
+                except sqlite3.IntegrityError:
+                    conn.rollback()
+                    error = "Account creation failed due to an existing record."
+
+    with closing(get_db_connection()) as conn:
+        rows = conn.execute("""
+            SELECT e.pin, e.name, e.is_active AS employee_active,
+                   u.id AS account_id, u.is_active AS account_active,
+                   u.must_change_password,
+                   GROUP_CONCAT(CASE WHEN a.is_active=1 THEN r.name END, ', ') AS roles
+            FROM employees e
+            LEFT JOIN user_accounts u ON u.employee_id=e.id
+            LEFT JOIN user_role_assignments a ON a.user_account_id=u.id
+            LEFT JOIN system_roles r ON r.id=a.system_role_id
+            GROUP BY e.id, u.id
+            ORDER BY e.name
+        """).fetchall()
+    return render_template("user_accounts.html", accounts=rows,
+                           csrf_token=token, error=error,
+                           created=request.args.get("created") == "1")
+
+
+
+# =================================================
+# ADMIN - ACCOUNT ROLE ASSIGNMENT (STEP 2)
+# =================================================
+@app.route("/admin/accounts/<int:account_id>/roles", methods=["GET", "POST"])
+def manage_account_roles(account_id):
+    # Role management is restricted to an active Super Admin user,
+    # not merely anybody with roles.manage (Admin also has that permission).
+    if not account_has_permission("roles.manage"):
+        abort(403)
+    with closing(get_db_connection()) as conn:
+        is_super = conn.execute("""
+            SELECT 1 FROM user_role_assignments a
+            JOIN system_roles r ON r.id=a.system_role_id AND r.is_active=1
+            WHERE a.user_account_id=? AND a.is_active=1 AND r.name='Super Admin'
+        """, (session["user_account_id"],)).fetchone()
+    if not is_super:
+        abort(403)
+
+    allowed_names = ("Employee", "Manager", "Cyber Security", "Technical Incharge")
+    token = session.setdefault("role_admin_csrf_token", secrets.token_urlsafe(32))
+    error = None
+
+    with closing(get_db_connection()) as conn:
+        account = conn.execute("""
+            SELECT u.id, u.is_active AS account_active, e.pin, e.name,
+                   e.is_active AS employee_active
+            FROM user_accounts u JOIN employees e ON e.id=u.employee_id
+            WHERE u.id=?
+        """, (account_id,)).fetchone()
+    if account is None:
+        abort(404)
+    if account_id == session["user_account_id"]:
+        abort(403)  # no self-grants, including edits to own role history
+
+    if request.method == "POST":
+        submitted = request.form.get("csrf_token", "")
+        if not submitted or not secrets.compare_digest(submitted, token):
+            abort(400)
+        role_name = request.form.get("role_name", "")
+        operation = request.form.get("operation", "")
+        if role_name not in allowed_names or operation not in ("grant", "revoke"):
+            abort(400)
+        if not account["account_active"] or not account["employee_active"]:
+            error = "Inactive accounts cannot have roles changed."
+        else:
+            with closing(get_db_connection()) as conn:
+                try:
+                    conn.execute("BEGIN IMMEDIATE")
+                    role = conn.execute("""
+                        SELECT id FROM system_roles WHERE name=? AND is_active=1
+                    """, (role_name,)).fetchone()
+                    if role is None:
+                        error = "Role not available in this database."
+                    else:
+                        current = conn.execute("""
+                            SELECT id FROM user_role_assignments
+                            WHERE user_account_id=? AND system_role_id=? AND is_active=1
+                        """, (account_id, role["id"])).fetchone()
+                        if operation == "grant" and current is None:
+                            conn.execute("""
+                                INSERT INTO user_role_assignments
+                                  (user_account_id, system_role_id, assigned_by_user_account_id)
+                                VALUES (?, ?, ?)
+                            """, (account_id, role["id"], session["user_account_id"]))
+                        elif operation == "revoke" and current is not None:
+                            if role_name == "Employee":
+                                error = "Employee baseline role cannot be revoked here."
+                            else:
+                                conn.execute("""
+                                    UPDATE user_role_assignments
+                                    SET is_active=0, end_date=CURRENT_TIMESTAMP
+                                    WHERE id=? AND is_active=1
+                                """, (current["id"],))
+                    if error:
+                        conn.rollback()
+                    else:
+                        conn.commit()
+                        return redirect(f"/admin/accounts/{account_id}/roles?updated=1")
+                except sqlite3.IntegrityError:
+                    conn.rollback()
+                    error = "Role update could not be saved."
+
+    with closing(get_db_connection()) as conn:
+        roles = conn.execute("""
+            SELECT r.name, a.is_active, a.start_date, a.end_date,
+                   a.assigned_by_user_account_id
+            FROM user_role_assignments a JOIN system_roles r ON r.id=a.system_role_id
+            WHERE a.user_account_id=? ORDER BY a.id DESC
+        """, (account_id,)).fetchall()
+    active = {r["name"] for r in roles if r["is_active"]}
+    return render_template("account_roles.html", account=account, roles=roles,
+                           active=active, allowed_names=allowed_names,
+                           csrf_token=token, error=error,
+                           updated=request.args.get("updated") == "1")
+
+
+# =================================================
+# ADMIN - ENABLE / DISABLE EMPLOYEE LOGIN (STEP 3)
+# =================================================
+@app.route("/admin/accounts/<int:account_id>/status", methods=["POST"])
+def set_login_account_status(account_id):
+    if not account_has_permission("accounts.manage"):
+        abort(403)
+    # Sensitive account changes require an active Super Admin role.
+    with closing(get_db_connection()) as conn:
+        actor = conn.execute("""
+            SELECT 1 FROM user_role_assignments a
+            JOIN system_roles r ON r.id=a.system_role_id AND r.is_active=1
+            WHERE a.user_account_id=? AND a.is_active=1
+              AND r.name='Super Admin'
+        """, (session["user_account_id"],)).fetchone()
+    if actor is None or account_id == session["user_account_id"]:
+        abort(403)
+
+    provided = request.form.get("csrf_token", "")
+    expected = session.get("account_admin_csrf_token", "")
+    if not provided or not expected or not secrets.compare_digest(provided, expected):
+        abort(400)
+    action = request.form.get("action", "")
+    if action not in ("disable", "enable"):
+        abort(400)
+
+    with closing(get_db_connection()) as conn:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            account = conn.execute("""
+                SELECT u.is_active AS login_active, e.is_active AS employee_active
+                FROM user_accounts u JOIN employees e ON e.id=u.employee_id
+                WHERE u.id=?
+            """, (account_id,)).fetchone()
+            if account is None:
+                abort(404)
+            # Never change access for an account holding Super Admin privileges.
+            privileged = conn.execute("""
+                SELECT 1 FROM user_role_assignments a
+                JOIN system_roles r ON r.id=a.system_role_id
+                WHERE a.user_account_id=? AND a.is_active=1
+                  AND r.name='Super Admin'
+            """, (account_id,)).fetchone()
+            if privileged:
+                abort(403)
+            if action == "enable" and not account["employee_active"]:
+                abort(409)
+            new_value = 1 if action == "enable" else 0
+            conn.execute("""
+                UPDATE user_accounts SET is_active=?, updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+            """, (new_value, account_id))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return redirect("/admin/accounts?status_updated=1")
