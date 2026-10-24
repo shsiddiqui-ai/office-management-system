@@ -907,6 +907,14 @@ default_system_roles = [
         "Technical Incharge",
         "Processes DVD issuance, return, shred and replacement work."
     ),
+
+        (
+        "Manager",
+        "Approves CD/DVD requests for assigned divisions and sections."
+    ),
+
+
+
     (
         "Employee",
         "Creates requests and views personal records."
