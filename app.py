@@ -4525,11 +4525,20 @@ def dvd_request_details(request_id):
             SELECT id, description, quantity, remarks
             FROM dvd_request_items WHERE request_id = ? ORDER BY id ASC
         """, (request_id,)).fetchall()
+
+        # Read-only audit history. Access was authorized above.
+        dvd_lifecycle_events = connection.execute("""
+            SELECT id, disc_id, action, actor_snapshot, details
+            FROM dvd_events
+            WHERE request_id = ?
+            ORDER BY id ASC
+        """, (request_id,)).fetchall()
     finally:
         connection.close()
 
     return render_template(
-        "dvd_request_details.html", dvd_request=dvd_request, dvd_items=dvd_items
+        "dvd_request_details.html", dvd_request=dvd_request, dvd_items=dvd_items,
+        dvd_lifecycle_events=dvd_lifecycle_events
     )
 
 @app.route(
